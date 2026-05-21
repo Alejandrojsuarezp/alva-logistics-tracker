@@ -31,6 +31,7 @@ pagina = st.sidebar.radio("Navigation", [
     "Shipments",
     "Loads",
     "Pricing",
+    "Updates Log",
     "Consolidations"
 ])
 
@@ -316,7 +317,45 @@ elif pagina == "Pricing":
         st.markdown(html_p, unsafe_allow_html=True)
     else:
         st.info("No quotes found with that filter.")
+# ── UPDATES LOG ───────────────────────────
+elif pagina == "Updates Log":
+    st.title("Updates Log")
+    st.markdown("---")
 
+    with st.spinner("Loading updates..."):
+        updates = get_updates_log()
+
+    if updates:
+        html_u = """
+        <style>
+        .updates-table { width:100%; border-collapse:collapse; font-size:14px; }
+        .updates-table th { background:#1e3a5f; color:white; padding:8px 10px; font-weight:600; border-bottom:2px solid #ccc; text-align:center; }
+        .updates-table td { padding:7px 10px; border-bottom:1px solid #e0e0e0; text-align:center; }
+        .updates-table tr:hover td { background:#f5f8ff; }
+        .flag-yes { background:#fff3cd; color:#856404; padding:2px 8px; border-radius:4px; font-weight:600; }
+        .flag-no  { color:#aaa; }
+        </style>
+        <table class="updates-table">
+        <thead><tr>
+            <th>Date/Time</th><th>Shipment</th><th>Linked Load</th><th>Type</th><th>Description</th><th>Responsible</th><th>⚠ Flag</th>
+        </tr></thead><tbody>"""
+        for u in updates:
+            flag = u.get('attention_flag', '')
+            flag_html = '<span class="flag-yes">⚠ Yes</span>' if flag else '<span class="flag-no">—</span>'
+            html_u += f"""<tr>
+                <td>{u.get('datetime','')}</td>
+                <td>{u.get('shipment','')}</td>
+                <td>{u.get('linked_load','')}</td>
+                <td>{u.get('type','')}</td>
+                <td>{u.get('description','')}</td>
+                <td>{u.get('responsible','')}</td>
+                <td>{flag_html}</td>
+            </tr>"""
+        html_u += "</tbody></table>"
+        st.markdown(html_u, unsafe_allow_html=True)
+        st.caption(f"Total: {len(updates)} updates")
+    else:
+        st.info("No updates logged yet.")
 # ── CONSOLIDATIONS ────────────────────────
 
 # ── CONSOLIDATIONS ────────────────────────

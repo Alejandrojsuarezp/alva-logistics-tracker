@@ -137,7 +137,33 @@ def get_pricing():
             "status": fields.get("Status", "")
         })
     return quotes
-
+def get_updates_log():
+    records = get_records(UPDATES_LOG_TABLE)
+    updates = []
+    for record in records:
+        fields = record.get("fields", {})
+        shipment_raw = fields.get("Shipment", "")
+        if isinstance(shipment_raw, list):
+            shipment = shipment_raw[0] if shipment_raw else ""
+        else:
+            shipment = shipment_raw
+        load_raw = fields.get("Linked Load", "")
+        if isinstance(load_raw, list):
+            load = load_raw[0] if load_raw else ""
+        else:
+            load = load_raw
+        updates.append({
+            "id": record["id"],
+            "update": fields.get("Update", ""),
+            "shipment": shipment,
+            "linked_load": load,
+            "datetime": format_date(fields.get("Date/Time", "")),
+            "type": fields.get("Type", ""),
+            "description": fields.get("Description", ""),
+            "responsible": fields.get("Responsible", ""),
+            "attention_flag": fields.get("Attention Flag", False)
+        })
+    return updates
 def update_record(table_id, record_id, fields):
     url = f"https://api.airtable.com/v0/{BASE_ID}/{table_id}/{record_id}"
     print(f"Actualizando: {url}")
