@@ -478,8 +478,9 @@ elif pagina == "Truck Builder":
     const ROWS=4,COLS=6,TRAILER_W=102,LEGAL_H=162,DECK_H=60,TRAILER_L=576;
     let slots=Array(ROWS*COLS).fill(null);
 
-    function getBundleData(size,len){
-      const key=size+"_"+len;
+   function getBundleData(size,len){
+      const key=size+"_"+parseInt(len);
+      console.log("Looking for key:", key, "Available:", Object.keys(BUNDLES_DB));
       return BUNDLES_DB[key]||null;
     }
     function slotIndex(r,c){return r*COLS+c;}
@@ -712,5 +713,5 @@ elif pagina == "Truck Builder":
     import json
     html_final = TRUCK_BUILDER_HTML.replace("__SIZE_OPTIONS__", size_options)
     html_final = html_final.replace("__BUNDLES_JSON__", json.dumps(bundles_json))
-st.write("DEBUG:", bundles_json)
+
 st.components.v1.html(html_final, height=900, scrolling=True)
