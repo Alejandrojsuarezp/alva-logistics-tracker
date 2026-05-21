@@ -284,13 +284,35 @@ elif pagina == "Pricing":
     with col_count:
         st.metric("Total", len(quotes_filtrados))
 
-    if quotes_filtrados:
-        df = pd.DataFrame(quotes_filtrados)[[
-            "quote_number", "carrier", "freight_cost",
-            "sales_value", "profit", "status"
-        ]]
-        df.columns = ["Quote #", "Carrier", "Freight Cost", "Sales Value", "Profit", "Status"]
-        st.dataframe(df, use_container_width=True, hide_index=True)
+  if quotes_filtrados:
+        html_p = """
+        <style>
+        .pricing-table { width:100%; border-collapse:collapse; font-size:14px; }
+        .pricing-table th { background:#1e3a5f; color:white; padding:8px 10px; font-weight:600; border-bottom:2px solid #ccc; text-align:center; }
+        .pricing-table td { padding:7px 10px; border-bottom:1px solid #e0e0e0; text-align:center; }
+        .pricing-table tr:hover td { background:#f5f8ff; }
+        </style>
+        <table class="pricing-table">
+        <thead><tr>
+            <th>Quote #</th><th>Carrier</th><th>Freight Cost</th><th>Sales Value</th><th>Profit</th><th>Status</th>
+        </tr></thead><tbody>"""
+        for q in quotes_filtrados:
+            try: fc = f"${int(q.get('freight_cost',0)):,}"
+            except: fc = q.get('freight_cost','')
+            try: sv = f"${int(q.get('sales_value',0)):,}"
+            except: sv = q.get('sales_value','')
+            try: pr = f"${int(q.get('profit',0)):,}"
+            except: pr = q.get('profit','')
+            html_p += f"""<tr>
+                <td>{q.get('quote_number','')}</td>
+                <td>{q.get('carrier','')}</td>
+                <td>{fc}</td>
+                <td>{sv}</td>
+                <td>{pr}</td>
+                <td>{q.get('status','')}</td>
+            </tr>"""
+        html_p += "</tbody></table>"
+        st.markdown(html_p, unsafe_allow_html=True)
     else:
         st.info("No quotes found with that filter.")
 
