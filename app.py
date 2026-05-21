@@ -79,18 +79,52 @@ if pagina == "Dashboard":
         st.subheader("Active Shipments")
         activos = pending + in_progress + ready
         if activos:
-            df = pd.DataFrame(activos)[["shipment_number", "city", "state", "weight", "warehouse_status"]]
-            df.columns = ["Shipment", "City", "State", "Weight (lbs)", "Status"]
-            st.dataframe(df, use_container_width=True, hide_index=True)
+            html_s = """
+            <style>
+            .dash-table { width:100%; border-collapse:collapse; font-size:14px; }
+            .dash-table th { background:#1e3a5f; color:white; padding:8px 10px; font-weight:600; border-bottom:2px solid #ccc; text-align:center; }
+            .dash-table td { padding:7px 10px; border-bottom:1px solid #e0e0e0; text-align:center; }
+            .dash-table tr:hover td { background:#f5f8ff; }
+            </style>
+            <table class="dash-table">
+            <thead><tr>
+                <th>Shipment</th><th>City</th><th>State</th><th>Weight (lbs)</th><th>Status</th>
+            </tr></thead><tbody>"""
+            for s in activos:
+                try: w = f"{int(s.get('weight',0)):,}"
+                except: w = ""
+                html_s += f"""<tr>
+                    <td>{s.get('shipment_number','')}</td>
+                    <td>{s.get('city','')}</td>
+                    <td>{s.get('state','')}</td>
+                    <td>{w}</td>
+                    <td>{s.get('warehouse_status','')}</td>
+                </tr>"""
+            html_s += "</tbody></table>"
+            st.markdown(html_s, unsafe_allow_html=True)
         else:
             st.info("No active shipments.")
 
     with col_right:
         st.subheader("Active Loads")
         if active_loads:
-            df_loads = pd.DataFrame(active_loads)[["load_number", "carrier", "total_weight", "load_status", "eta_pickup"]]
-            df_loads.columns = ["Load", "Carrier", "Total Weight", "Status", "ETA Pickup"]
-            st.dataframe(df_loads, use_container_width=True, hide_index=True)
+            html_l = """
+            <table class="dash-table">
+            <thead><tr>
+                <th>Load</th><th>Carrier</th><th>Total Weight</th><th>Status</th><th>ETA Pickup</th>
+            </tr></thead><tbody>"""
+            for l in active_loads:
+                try: tw = f"{int(l.get('total_weight',0)):,}"
+                except: tw = l.get('total_weight','')
+                html_l += f"""<tr>
+                    <td>{l.get('load_number','')}</td>
+                    <td>{l.get('carrier','')}</td>
+                    <td>{tw}</td>
+                    <td>{l.get('load_status','')}</td>
+                    <td>{l.get('eta_pickup','')}</td>
+                </tr>"""
+            html_l += "</tbody></table>"
+            st.markdown(html_l, unsafe_allow_html=True)
         else:
             st.info("No active loads.")
 
