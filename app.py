@@ -366,8 +366,10 @@ elif pagina == "Consolidations":
 
     if st.button("Detect opportunities"):
         with st.spinner("Analyzing active shipments..."):
-            oportunidades = detectar_consolidaciones()
+            st.session_state["consolidaciones"] = detectar_consolidaciones()
 
+    if "consolidaciones" in st.session_state:
+        oportunidades = st.session_state["consolidaciones"]
         if oportunidades:
             st.success(f"{len(oportunidades)} opportunity(ies) detected")
             for i, op in enumerate(oportunidades, 1):
