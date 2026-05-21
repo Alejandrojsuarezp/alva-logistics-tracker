@@ -228,13 +228,36 @@ elif pagina == "Loads":
         loads = get_loads()
 
     if loads:
-        df = pd.DataFrame(loads)[[
-            "load_number", "carrier", "total_weight",
-            "total_bundles", "load_status", "eta_pickup",
-            "freight_cost", "sales_value"
-        ]]
-        df.columns = ["Load", "Carrier", "Total Weight", "Bundles", "Status", "ETA Pickup", "Freight Cost", "Sales Value"]
-        st.dataframe(df, use_container_width=True, hide_index=True)
+        html_l = """
+        <style>
+        .loads-table { width:100%; border-collapse:collapse; font-size:14px; }
+        .loads-table th { background:#1e3a5f; color:white; padding:8px 10px; font-weight:600; border-bottom:2px solid #ccc; text-align:center; }
+        .loads-table td { padding:7px 10px; border-bottom:1px solid #e0e0e0; text-align:center; }
+        .loads-table tr:hover td { background:#f5f8ff; }
+        </style>
+        <table class="loads-table">
+        <thead><tr>
+            <th>Load</th><th>Carrier</th><th>Total Weight</th><th>Bundles</th><th>Status</th><th>ETA Pickup</th><th>Freight Cost</th><th>Sales Value</th>
+        </tr></thead><tbody>"""
+        for l in loads:
+            try: tw = f"{int(l.get('total_weight',0)):,}"
+            except: tw = l.get('total_weight','')
+            try: fc = f"${int(l.get('freight_cost',0)):,}"
+            except: fc = l.get('freight_cost','')
+            try: sv = f"${int(l.get('sales_value',0)):,}"
+            except: sv = l.get('sales_value','')
+            html_l += f"""<tr>
+                <td>{l.get('load_number','')}</td>
+                <td>{l.get('carrier','')}</td>
+                <td>{tw}</td>
+                <td>{l.get('total_bundles','')}</td>
+                <td>{l.get('load_status','')}</td>
+                <td>{l.get('eta_pickup','')}</td>
+                <td>{fc}</td>
+                <td>{sv}</td>
+            </tr>"""
+        html_l += "</tbody></table>"
+        st.markdown(html_l, unsafe_allow_html=True)
         st.caption(f"Total: {len(loads)} loads")
     else:
         st.info("No loads registered.")
