@@ -2,3 +2,4 @@ requests
 pandas
 geopy
 streamlit
+streamlit-autorefresh

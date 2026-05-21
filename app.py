@@ -17,8 +17,9 @@ st.set_page_config(
     layout="wide"
 )
 
-# Auto-refresh every 30 seconds
-st.markdown("""<meta http-equiv="refresh" content="30">""", unsafe_allow_html=True)
+# Auto-refresh every 30 seconds without page reload
+from streamlit_autorefresh import st_autorefresh
+st_autorefresh(interval=30000, silent=True)
 
 # Sidebar navigation
 st.sidebar.title("🚛 Alva Logistics")
