@@ -498,7 +498,7 @@ elif pagina == "Truck Builder":
       const len=parseInt(document.getElementById('sel-len').value);
       const qty=parseInt(document.getElementById('sel-qty').value)||1;
       const b=getBundleData(size,len);
-      if(!b){alert('Bundle not found: '+size+'_'+len);return;}
+     if(!b){console.log('Not found:',size+'_'+len,'Keys:',Object.keys(BUNDLES_DB));return;}
       let added=0;
       for(let i=0;i<ROWS*COLS&&added<qty;i++){
         if(!slots[i]){slots[i]={size,len,w:b.width_in,h:b.height_in,l:b.length_in};added++;}
