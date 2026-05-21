@@ -414,9 +414,10 @@ elif pagina == "Truck Builder":
 
     ROWS, COLS = 4, 6
     TRAILER_W, TRAILER_L, DECK_H, LEGAL_H = 102, 576, 60, 162
+    MAX_STACK = 4
 
     if "tb_slots" not in st.session_state:
-        st.session_state.tb_slots = [[None]*COLS for _ in range(ROWS)]
+        st.session_state.tb_slots = [[[] for _ in range(COLS)] for _ in range(ROWS)]
 
     col1, col2, col3, col4 = st.columns([2,2,1,1])
     with col1:
@@ -428,82 +429,83 @@ elif pagina == "Truck Builder":
         qty = st.number_input("Qty", min_value=1, max_value=24, value=1)
     with col4:
         st.markdown("<br>", unsafe_allow_html=True)
-        add = st.button("+ Add", type="primary")
-
-    col_clear, _ = st.columns([1,5])
-    with col_clear:
         if st.button("Clear all"):
-            st.session_state.tb_slots = [[None]*COLS for _ in range(ROWS)]
+            st.session_state.tb_slots = [[[] for _ in range(COLS)] for _ in range(ROWS)]
             st.rerun()
 
-    if add:
-        b = BUNDLES[size_sel][len_sel]
-        added = 0
-        for r in range(ROWS):
-            for c in range(COLS):
-                if added >= qty:
-                    break
-                if st.session_state.tb_slots[r][c] is None:
-                    st.session_state.tb_slots[r][c] = {
-                        "size": size_sel, "len": int(len_sel),
-                        "w": b["w"], "h": b["h"], "l": b["l"]
-                    }
-                    added += 1
+    slots = st.session_state.tb_slots
+    b_data = BUNDLES[size_sel][len_sel]
+
+    st.markdown("---")
+    st.subheader("Loading Diagram — click slot to add/remove")
+    st.caption("← FRONT &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BACK →", unsafe_allow_html=True)
+
+    grid_cols = st.columns(COLS + 1)
+    grid_cols[0].markdown("<div style='font-size:11px;color:#999;writing-mode:vertical-rl;transform:rotate(180deg);height:200px;display:flex;align-items:center;'>LEFT SIDE</div>", unsafe_allow_html=True)
+
+    changed = False
+    for r in range(ROWS):
+        row_cols = st.columns(COLS + 1)
+        row_cols[0].markdown("")
+        for c in range(COLS):
+            slot = slots[r][c]
+            stack_count = len(slot)
+            top = slot[-1] if slot else None
+            border_style = "3px solid #333" if c == 2 else "1px dashed #ccc"
+            if top:
+                color = COLORS.get(top["size"], "#378ADD")
+                label = f"{top['size']}\n{top['len']}ft\n×{stack_count}"
+                btn_label = f"{top['size']} ×{stack_count}"
+            else:
+                color = "#ccc"
+                label = "+"
+                btn_label = "+"
+
+            if row_cols[c+1].button(btn_label, key=f"slot_{r}_{c}", help=f"Row {r+1}, Col {c+1} — {stack_count} bundles"):
+                if slot and len(slot) > 0:
+                    slots[r][c].pop()
+                else:
+                    if b_data and stack_count < MAX_STACK:
+                        slots[r][c].append({
+                            "size": size_sel,
+                            "len": int(len_sel),
+                            "w": b_data["w"],
+                            "h": b_data["h"],
+                            "l": b_data["l"]
+                        })
+                changed = True
+
+    if changed:
         st.rerun()
 
-    slots = st.session_state.tb_slots
+    st.markdown("<div style='font-size:11px;color:#999;text-align:right;margin-top:4px;'>RIGHT SIDE</div>", unsafe_allow_html=True)
 
-    total = sum(1 for r in range(ROWS) for c in range(COLS) if slots[r][c])
+    total = sum(len(slots[r][c]) for r in range(ROWS) for c in range(COLS))
     col_heights = []
     for c in range(COLS):
         h = DECK_H
         for r in range(ROWS):
-            if slots[r][c]:
-                h += slots[r][c]["h"]
+            for bundle in slots[r][c]:
+                h += bundle["h"]
         col_heights.append(h)
     max_h = max(col_heights) if col_heights else DECK_H
-    left_w = sum(slots[r][c]["w"]*slots[r][c]["h"]*0.000284 for r in range(ROWS) for c in range(3) if slots[r][c])
-    right_w = sum(slots[r][c]["w"]*slots[r][c]["h"]*0.000284 for r in range(ROWS) for c in range(3,6) if slots[r][c])
-    ft = max_h // 12
+    left_w = sum(b["w"]*b["h"]*0.000284 for r in range(ROWS) for c in range(3) for b in slots[r][c])
+    right_w = sum(b["w"]*b["h"]*0.000284 for r in range(ROWS) for c in range(3,6) for b in slots[r][c])
+    ft = int(max_h // 12)
     inch = round(max_h % 12)
 
+    st.markdown("---")
     m1,m2,m3,m4,m5 = st.columns(5)
     m1.metric("Total bundles", total)
-    m2.metric("Slots used", f"{total} / {ROWS*COLS}")
-    height_str = f"{ft}'{inch}\""
-    m3.metric("Max height", height_str)
+    m2.metric("Slots used", f"{sum(1 for r in range(ROWS) for c in range(COLS) if slots[r][c])} / {ROWS*COLS}")
+    m3.metric("Max height", f"{ft}'{inch}\"")
     m4.metric("Left weight", f"{int(left_w)} lbs")
     m5.metric("Right weight", f"{int(right_w)} lbs")
 
     if max_h > LEGAL_H + DECK_H:
         st.error(f"Height exceeded — {ft}'{inch}\" supera el límite de 13'6\"")
     elif total > 0:
-        st.success(f"Load OK — {ft}'{inch}\" altura, {ROWS*COLS-total} slots disponibles")
-
-    st.markdown("---")
-    st.subheader("Loading Diagram")
-    st.caption("← FRONT &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BACK →", unsafe_allow_html=True)
-
-    grid_html = """<style>
-    .grid{border-collapse:collapse;margin:0 auto;}
-    .grid td{width:60px;height:50px;border:1px dashed #ccc;text-align:center;vertical-align:middle;font-size:11px;font-weight:500;}
-    .grid td.center{border-right:3px solid #333;}
-    </style><table class="grid"><tbody>"""
-
-    for r in range(ROWS):
-        grid_html += "<tr>"
-        for c in range(COLS):
-            s = slots[r][c]
-            border = ' class="center"' if c == 2 else ''
-            if s:
-                color = COLORS.get(s["size"], "#378ADD")
-                grid_html += f'<td{border} style="background:{color}22;border-color:{color};color:{color};">{s["size"]}<br>{s["len"]}ft</td>'
-            else:
-                grid_html += f'<td{border}></td>'
-        grid_html += "</tr>"
-    grid_html += "</tbody></table>"
-    grid_html += "<div style='display:flex;justify-content:space-between;font-size:11px;color:#999;margin-top:4px;'><span>LEFT SIDE</span><span>RIGHT SIDE</span></div>"
-    st.markdown(grid_html, unsafe_allow_html=True)
+        st.success(f"Load OK — {ft}'{inch}\" altura, {ROWS*COLS - sum(1 for r in range(ROWS) for c in range(COLS) if slots[r][c])} slots disponibles")
 
     st.markdown("---")
 
@@ -523,25 +525,27 @@ elif pagina == "Truck Builder":
 
     row_l = TRAILER_L / ROWS
     col_w = TRAILER_W / COLS
+
     for r in range(ROWS):
         for c in range(COLS):
-            s = slots[r][c]
-            if not s:
+            stack = slots[r][c]
+            if not stack:
                 continue
             x0 = r * row_l
             x1 = x0 + row_l - 2
-            z0 = DECK_H
-            z1 = z0 + s["h"]
             y0 = -TRAILER_W/2 + c * col_w
             y1 = y0 + col_w - 2
-            color = COLORS.get(s["size"], "#378ADD")
-            fig.add_trace(make_box(x0,x1,y0,y1,z0,z1,color))
+            z_base = DECK_H
+            for bundle in stack:
+                color = COLORS.get(bundle["size"], "#378ADD")
+                fig.add_trace(make_box(x0,x1,y0,y1,z_base,z_base+bundle["h"],color))
+                z_base += bundle["h"]
 
     fig.update_layout(
         scene=dict(
-            xaxis=dict(title="Length (in)", range=[0,TRAILER_L]),
-            yaxis=dict(title="Width (in)", range=[-TRAILER_W/2,TRAILER_W/2]),
-            zaxis=dict(title="Height (in)", range=[0,LEGAL_H+DECK_H]),
+            xaxis=dict(title="Length", range=[0,TRAILER_L]),
+            yaxis=dict(title="Width", range=[-TRAILER_W/2,TRAILER_W/2]),
+            zaxis=dict(title="Height", range=[0,LEGAL_H+DECK_H]),
             aspectmode="data",
             camera=dict(eye=dict(x=1.5,y=1.5,z=1))
         ),
