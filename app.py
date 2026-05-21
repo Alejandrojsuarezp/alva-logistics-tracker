@@ -150,8 +150,8 @@ elif pagina == "Shipments":
         """
         for s in shipments_filtrados:
             html += f"""<tr>
-                <td class="left">{s.get('shipment_number','')}</td>
-                <td class="left">{s.get('customer','')}</td>
+                <td class="center">{s.get('shipment_number','')}</td>
+                <td class="center">{s.get('customer','')}</td>
                 <td class="center">{s.get('city','')}</td>
                 <td class="center">{s.get('state','')}</td>
                 <td class="center">{fmt_weight(s.get('weight',''))}</td>
