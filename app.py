@@ -712,5 +712,5 @@ elif pagina == "Truck Builder":
     import json
     html_final = TRUCK_BUILDER_HTML.replace("__SIZE_OPTIONS__", size_options)
     html_final = html_final.replace("__BUNDLES_JSON__", json.dumps(bundles_json))
-
+st.write("DEBUG:", bundles_json)
     st.components.v1.html(html_final, height=900, scrolling=True)
