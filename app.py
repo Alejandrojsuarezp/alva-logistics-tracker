@@ -122,6 +122,8 @@ elif pagina == "Shipments":
             "weight", "bundles", "trailer_type", "warehouse_status", "delivery_date"
         ]]
         df.columns = ["Shipment", "Customer", "City", "State", "Weight", "Bundles", "Trailer", "Status", "Delivery Date"]
+        df["Weight"] = df["Weight"].apply(lambda x: f"{int(x):,}" if pd.notna(x) and x != "" else "")
+        df["Delivery Date"] = df["Delivery Date"].apply(lambda x: datetime.strptime(x, "%Y-%m-%d").strftime("%m-%d-%Y") if pd.notna(x) and x != "" else "")
         st.dataframe(df, use_container_width=True, hide_index=True)
     else:
         st.info("No shipments found with that filter.")
