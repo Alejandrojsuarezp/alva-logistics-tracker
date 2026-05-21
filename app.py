@@ -416,11 +416,7 @@ elif pagina == "Truck Builder":
     TRAILER_W, TRAILER_L, DECK_H, LEGAL_H = 102, 576, 60, 162
     MAX_STACK = 4
 
-  try:
-        if not isinstance(st.session_state.tb_slots[0][0], list):
-            raise ValueError
-    except:
-        st.session_state.tb_slots = [[[] for _ in range(COLS)] for _ in range(ROWS)]
+    try:\r\n        if not isinstance(st.session_state.tb_slots[0][0], list):\r\n            raise ValueError\r\n    except:\r\n        st.session_state.tb_slots = [[[] for _ in range(COLS)] for _ in range(ROWS)]
 
     col1, col2, col3, col4 = st.columns([2,2,1,1])
     with col1:
