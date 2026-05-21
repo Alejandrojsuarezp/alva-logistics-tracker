@@ -473,7 +473,7 @@ elif pagina == "Truck Builder":
     </div>
     </div>
     <script>
-    const BUNDLES_DB = __BUNDLES_JSON__;
+    const BUNDLES_DB = JSON.parse('__BUNDLES_JSON__'.replace(/&quot;/g, '"'));
     const COLORS={"0.5":"#7F77DD","0.75":"#534AB7","1":"#1D9E75","1.25":"#0F6E56","1.5":"#D85A30","2":"#993C1D","2.5":"#D4537E","3":"#993556","3.5":"#378ADD","4":"#185FA5","5":"#BA7517","6":"#854F0B","8":"#639922"};
     const ROWS=4,COLS=6,TRAILER_W=102,LEGAL_H=162,DECK_H=60,TRAILER_L=576;
     let slots=Array(ROWS*COLS).fill(null);
@@ -712,6 +712,11 @@ elif pagina == "Truck Builder":
 
     import json
     html_final = TRUCK_BUILDER_HTML.replace("__SIZE_OPTIONS__", size_options)
-    html_final = html_final.replace("__BUNDLES_JSON__", json.dumps(bundles_json))
+    import json
+    bundles_str = json.dumps(bundles_json, ensure_ascii=False)
+    html_final = TRUCK_BUILDER_HTML.replace("__SIZE_OPTIONS__", size_options)
+    html_final = html_final.replace("'__BUNDLES_JSON__'", bundles_str)
+    html_final = html_final.replace('"__BUNDLES_JSON__"', bundles_str)
+    html_final = html_final.replace("__BUNDLES_JSON__", bundles_str)
 
 st.components.v1.html(html_final, height=900, scrolling=True)
