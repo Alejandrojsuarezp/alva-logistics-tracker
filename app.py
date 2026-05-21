@@ -127,7 +127,8 @@ elif pagina == "Shipments":
         html = """
         <style>
         .alva-table { width:100%; border-collapse:collapse; font-size:14px; }
-        .alva-table th { background:#1e3a5f; color:white; padding:8px 10px; font-weight:600; border-bottom:2px solid #ccc; }
+        .alva-table th.left  { background:#1e3a5f; color:white; padding:8px 10px; font-weight:600; border-bottom:2px solid #ccc; text-align:left; }
+        .alva-table th.center { background:#1e3a5f; color:white; padding:8px 10px; font-weight:600; border-bottom:2px solid #ccc; text-align:center; }
         .alva-table td { padding:7px 10px; border-bottom:1px solid #e0e0e0; }
         .alva-table tr:hover td { background:#f5f8ff; }
         .left  { text-align:left; }
