@@ -473,7 +473,7 @@ elif pagina == "Truck Builder":
     </div>
     </div>
     <script>
-    const BUNDLES_DB = JSON.parse('__BUNDLES_JSON__'.replace(/&quot;/g, '"'));
+    __BUNDLES_JS__
     const COLORS={"0.5":"#7F77DD","0.75":"#534AB7","1":"#1D9E75","1.25":"#0F6E56","1.5":"#D85A30","2":"#993C1D","2.5":"#D4537E","3":"#993556","3.5":"#378ADD","4":"#185FA5","5":"#BA7517","6":"#854F0B","8":"#639922"};
     const ROWS=4,COLS=6,TRAILER_W=102,LEGAL_H=162,DECK_H=60,TRAILER_L=576;
     let slots=Array(ROWS*COLS).fill(null);
@@ -719,4 +719,19 @@ elif pagina == "Truck Builder":
     html_final = html_final.replace('"__BUNDLES_JSON__"', bundles_str)
     html_final = html_final.replace("__BUNDLES_JSON__", bundles_str)
 
-st.components.v1.html(html_final, height=900, scrolling=True)
+bundles_js = "const BUNDLES_DB = {"
+    for d in dimensions:
+        size_key = d['size'].replace('"', '').strip()
+        key = f"{size_key}_{int(d['length_ft'])}"
+        bundles_js += f'"{key}":{{size:"{size_key}",length_ft:{int(d["length_ft"])},length_in:{d["length_in"]},width_in:{d["width_in"]},height_in:{d["height_in"]}}},'
+    bundles_js += "};"
+
+    size_order = ["1/2","3/4","1","1-1/4","1-1/2","2","2-1/2","3","3-1/2","4","5","6","8"]
+    size_options = ""
+    for size in size_order:
+        size_options += f'<option value="{size}">{size}"</option>'
+
+    html_final = TRUCK_BUILDER_HTML.replace("__SIZE_OPTIONS__", size_options)
+    html_final = html_final.replace("__BUNDLES_JS__", bundles_js)
+
+    st.components.v1.html(html_final, height=900, scrolling=True)
