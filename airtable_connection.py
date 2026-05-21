@@ -3,7 +3,7 @@
 # ============================================
 
 import requests
-from config import AIRTABLE_TOKEN, BASE_ID, SHIPMENTS_TABLE, PRICING_TABLE, LOADS_TABLE, UPDATES_LOG_TABLE
+from config import AIRTABLE_TOKEN, BASE_ID, SHIPMENTS_TABLE, PRICING_TABLE, LOADS_TABLE, UPDATES_LOG_TABLE, BUNDLE_DIMENSIONS_TABLE
 def format_date(date_str):
     if not date_str:
         return ""
@@ -164,6 +164,21 @@ def get_updates_log():
             "attention_flag": fields.get("Attention Flag", False)
         })
     return updates
+def get_bundle_dimensions():
+    records = get_records(BUNDLE_DIMENSIONS_TABLE)
+    dimensions = []
+    for record in records:
+        fields = record.get("fields", {})
+        dimensions.append({
+            "id": record["id"],
+            "size": fields.get("Size", ""),
+            "sch": fields.get("SCH", ""),
+            "length_ft": fields.get("Length (ft)", 0),
+            "length_in": fields.get("Length (in)", 0),
+            "width_in": fields.get("Width (in)", 0),
+            "height_in": fields.get("Height (in)", 0)
+        })
+    return dimensions
 def update_record(table_id, record_id, fields):
     url = f"https://api.airtable.com/v0/{BASE_ID}/{table_id}/{record_id}"
     print(f"Actualizando: {url}")
