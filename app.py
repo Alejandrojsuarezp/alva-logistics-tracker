@@ -263,6 +263,7 @@ elif pagina == "Loads":
         st.info("No loads registered.")
 
 # ── PRICING ────────────────────────────────
+# ── PRICING ────────────────────────────────
 elif pagina == "Pricing":
     st.title("Pricing")
     st.markdown("---")
@@ -284,7 +285,7 @@ elif pagina == "Pricing":
     with col_count:
         st.metric("Total", len(quotes_filtrados))
 
-  if quotes_filtrados:
+    if quotes_filtrados:
         html_p = """
         <style>
         .pricing-table { width:100%; border-collapse:collapse; font-size:14px; }
@@ -315,6 +316,8 @@ elif pagina == "Pricing":
         st.markdown(html_p, unsafe_allow_html=True)
     else:
         st.info("No quotes found with that filter.")
+
+# ── CONSOLIDATIONS ────────────────────────
 
 # ── CONSOLIDATIONS ────────────────────────
 elif pagina == "Consolidations":
