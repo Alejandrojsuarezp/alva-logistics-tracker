@@ -117,17 +117,52 @@ elif pagina == "Shipments":
         st.metric("Total", len(shipments_filtrados))
 
     if shipments_filtrados:
-        df = pd.DataFrame(shipments_filtrados)[[
-            "shipment_number", "customer", "city", "state",
-            "weight", "bundles", "trailer_type", "warehouse_status", "delivery_date"
-        ]]
-        df.columns = ["Shipment", "Customer", "City", "State", "Weight", "Bundles", "Trailer", "Status", "Delivery Date"]
-        df["Weight"] = df["Weight"].apply(lambda x: f"{int(x):,}" if pd.notna(x) and x != "" else "")
-        df["Delivery Date"] = df["Delivery Date"].apply(lambda x: datetime.strptime(x, "%Y-%m-%d").strftime("%m-%d-%Y") if pd.notna(x) and x != "" else "")
-        st.dataframe(df, use_container_width=True, hide_index=True)
+        def fmt_weight(x):
+            try: return f"{int(x):,}"
+            except: return ""
+        def fmt_date(x):
+            try: return datetime.strptime(x, "%Y-%m-%d").strftime("%m-%d-%Y")
+            except: return x if x else ""
+
+        html = """
+        <style>
+        .alva-table { width:100%; border-collapse:collapse; font-size:14px; }
+        .alva-table th { background:#1e3a5f; color:white; padding:8px 10px; font-weight:600; border-bottom:2px solid #ccc; }
+        .alva-table td { padding:7px 10px; border-bottom:1px solid #e0e0e0; }
+        .alva-table tr:hover td { background:#f5f8ff; }
+        .left  { text-align:left; }
+        .center { text-align:center; }
+        </style>
+        <table class="alva-table">
+        <thead><tr>
+            <th class="left">Shipment</th>
+            <th class="left">Customer</th>
+            <th class="center">City</th>
+            <th class="center">State</th>
+            <th class="center">Weight</th>
+            <th class="center">Bundles</th>
+            <th class="center">Trailer</th>
+            <th class="center">Status</th>
+            <th class="center">Delivery Date</th>
+        </tr></thead>
+        <tbody>
+        """
+        for s in shipments_filtrados:
+            html += f"""<tr>
+                <td class="left">{s.get('shipment_number','')}</td>
+                <td class="left">{s.get('customer','')}</td>
+                <td class="center">{s.get('city','')}</td>
+                <td class="center">{s.get('state','')}</td>
+                <td class="center">{fmt_weight(s.get('weight',''))}</td>
+                <td class="center">{s.get('bundles','')}</td>
+                <td class="center">{s.get('trailer_type','')}</td>
+                <td class="center">{s.get('warehouse_status','')}</td>
+                <td class="center">{fmt_date(s.get('delivery_date',''))}</td>
+            </tr>"""
+        html += "</tbody></table>"
+        st.markdown(html, unsafe_allow_html=True)
     else:
         st.info("No shipments found with that filter.")
-
     st.markdown("---")
     st.subheader("Update Warehouse Status")
     st.caption("Select a shipment and update its status directly from here.")
