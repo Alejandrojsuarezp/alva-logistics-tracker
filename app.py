@@ -19,7 +19,7 @@ st.set_page_config(
 
 # Auto-refresh every 30 seconds without page reload
 from streamlit_autorefresh import st_autorefresh
-st_autorefresh(interval=30000, silent=True)
+st_autorefresh(interval=30000)
 
 # Sidebar navigation
 st.sidebar.title("🚛 Alva Logistics")
