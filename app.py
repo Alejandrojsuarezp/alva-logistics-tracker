@@ -693,23 +693,21 @@ elif pagina == "Truck Builder":
 
     bundles_json = {}
     for d in dimensions:
-        key = f"{d['size'].replace('\"', '')}_{d['length_ft']}"
+        size_key = d['size'].replace('"', '').strip()
+        key = f"{size_key}_{int(d['length_ft'])}"
         bundles_json[key] = {
-            "size": d['size'].replace('"', ''),
+            "size": size_key,
             "sch": d['sch'],
-            "length_ft": d['length_ft'],
+            "length_ft": int(d['length_ft']),
             "length_in": d['length_in'],
             "width_in": d['width_in'],
             "height_in": d['height_in']
         }
 
+    size_order = ["1/2", "3/4", "1", "1-1/4", "1-1/2", "2", "2-1/2", "3", "3-1/2", "4", "5", "6", "8"]
     size_options = ""
-    seen_sizes = []
-    for d in sorted(dimensions, key=lambda x: x['length_ft']):
-        size = d['size'].replace('"', '')
-        if size not in seen_sizes:
-            seen_sizes.append(size)
-            size_options += f'<option value="{size}">{d["size"]}</option>'
+    for size in size_order:
+        size_options += f'<option value="{size}">{size}"</option>'
 
     import json
     html_final = TRUCK_BUILDER_HTML.replace("__SIZE_OPTIONS__", size_options)
