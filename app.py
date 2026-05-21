@@ -136,8 +136,8 @@ elif pagina == "Shipments":
         </style>
         <table class="alva-table">
         <thead><tr>
-            <th class="left">Shipment</th>
-            <th class="left">Customer</th>
+            <th class="center">Shipment</th>
+            <th class="center">Customer</th>
             <th class="center">City</th>
             <th class="center">State</th>
             <th class="center">Weight</th>
