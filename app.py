@@ -7,7 +7,7 @@ import pandas as pd
 import requests
 from datetime import datetime
 from config import AIRTABLE_TOKEN, SHIPMENTS_TABLE
-from airtable_connection import get_all_shipments, get_loads, get_pricing
+from airtable_connection import get_all_shipments, get_loads, get_pricing, get_updates_log
 from consolidation_detector import detectar_consolidaciones
 
 # Page configuration
