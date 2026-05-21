@@ -4,7 +4,15 @@
 
 import requests
 from config import AIRTABLE_TOKEN, BASE_ID, SHIPMENTS_TABLE, PRICING_TABLE, LOADS_TABLE, UPDATES_LOG_TABLE
-
+def format_date(date_str):
+    if not date_str:
+        return ""
+    try:
+        from datetime import datetime
+        dt = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+        return dt.strftime("%m/%d/%Y %I:%M %p")
+    except:
+        return date_str
 HEADERS = {
     "Authorization": f"Bearer {AIRTABLE_TOKEN}",
     "Content-Type": "application/json"
@@ -84,7 +92,7 @@ def get_loads():
             "total_bundles": fields.get("Total Bundles", 0),
             "destinations": fields.get("Destinations", []),
             "load_status": fields.get("Load Status", ""),
-            "eta_pickup": fields.get("ETA Pickup", ""),
+            "eta_pickup": format_date(fields.get("ETA Pickup", "")),
             "freight_cost": fields.get("Freight Cost", 0),
             "sales_value": fields.get("Sales Value", 0),
             "freight_pct": fields.get("Freight %", 0)
