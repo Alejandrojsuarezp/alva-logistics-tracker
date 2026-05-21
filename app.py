@@ -4,10 +4,10 @@
 
 import streamlit as st
 import pandas as pd
+import requests
 from datetime import datetime
-from airtable_connection import (
-    get_all_shipments, get_loads, get_pricing
-)
+from config import AIRTABLE_TOKEN, SHIPMENTS_TABLE
+from airtable_connection import get_all_shipments, get_loads, get_pricing
 from consolidation_detector import detectar_consolidaciones
 
 # Configuracion de la pagina
@@ -35,6 +35,18 @@ pagina = st.sidebar.radio("Navegacion", [
 
 st.sidebar.markdown("---")
 st.sidebar.markdown(f"*Texas — {datetime.now().strftime('%m/%d/%Y')}*")
+
+# Headers para Airtable
+HEADERS = {
+    "Authorization": f"Bearer {AIRTABLE_TOKEN}",
+    "Content-Type": "application/json"
+}
+
+def actualizar_status(record_id, nuevo_status):
+    url = f"https://api.airtable.com/v0/{st.secrets['BASE_ID']}/{SHIPMENTS_TABLE}/{record_id}"
+    payload = {"fields": {"Warehouse Status": nuevo_status}}
+    response = requests.patch(url, headers=HEADERS, json=payload)
+    return response
 
 # ── DASHBOARD ──────────────────────────────
 if pagina == "Dashboard":
@@ -117,24 +129,22 @@ elif pagina == "Shipments":
     st.subheader("Actualizar Warehouse Status")
     st.caption("Selecciona un shipment y cambia su status directamente desde aqui.")
 
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        numeros = [s["shipment_number"] for s in shipments]
-        shipment_sel = st.selectbox("Shipment", numeros)
-    with col2:
-        nuevo_status = st.selectbox("Nuevo Status", [
-            "Pending Print", "In Progress", "Ready", "Shipped"
-        ])
-    with col3:
-        st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("Actualizar Status"):
-            from airtable_connection import update_record
-            from config import SHIPMENTS_TABLE
-            shipment_obj = next((s for s in shipments if s["shipment_number"] == shipment_sel), None)
-            if shipment_obj:
-                result = update_record(SHIPMENTS_TABLE, shipment_obj["id"], {"Warehouse Status": nuevo_status})
-                st.success(f"Status de {shipment_sel} actualizado a {nuevo_status}")
+    shipment_sel = st.selectbox("Shipment", [s["shipment_number"] for s in shipments])
+    nuevo_status = st.selectbox("Nuevo Status", [
+        "Pending Print", "In Progress", "Ready", "Shipped"
+    ])
+
+    if st.button("Actualizar Status", type="primary"):
+        shipment_obj = next((s for s in shipments if s["shipment_number"] == shipment_sel), None)
+        if shipment_obj:
+            response = actualizar_status(shipment_obj["id"], nuevo_status)
+            if response.status_code == 200:
+                st.success(f"✅ {shipment_sel} actualizado a {nuevo_status}")
                 st.rerun()
+            else:
+                st.error(f"Error {response.status_code}: {response.text}")
+        else:
+            st.error("No se encontro el shipment")
 
 # ── LOADS ──────────────────────────────────
 elif pagina == "Loads":

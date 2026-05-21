@@ -110,5 +110,10 @@ def get_pricing():
 
 def update_record(table_id, record_id, fields):
     url = f"https://api.airtable.com/v0/{BASE_ID}/{table_id}/{record_id}"
+    print(f"Actualizando: {url}")
+    print(f"Fields: {fields}")
+    print(f"Token: {AIRTABLE_TOKEN[:20]}...")
     response = requests.patch(url, headers=HEADERS, json={"fields": fields})
+    print(f"Response status: {response.status_code}")
+    print(f"Response: {response.text}")
     return response.json()
