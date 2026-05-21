@@ -2,20 +2,29 @@
 # ALVA LOGISTICS TRACKER - Configuracion Global
 # ============================================
 
+import os
+import streamlit as st
+
+def get_secret(key, default=None):
+    try:
+        return st.secrets[key]
+    except:
+        return os.environ.get(key, default)
+
 # Airtable
-AIRTABLE_TOKEN = "patmpjMemsHArV5nj.56a59ae5686d99e352e9545a4121a5d01aa7b6cf7ac73f83e8f463a933769a57"
-BASE_ID = "appvh3OYHfPjKVnLE"
+AIRTABLE_TOKEN = get_secret("AIRTABLE_TOKEN")
+BASE_ID = get_secret("BASE_ID")
 
 # IDs de las tablas
-SHIPMENTS_TABLE = "tblVf4X9gYoNjLSd1"
-PRICING_TABLE = "tbls1jx66GezMol7b"
-LOADS_TABLE = "tblIfj6bRPJMkgXa5"
-UPDATES_LOG_TABLE = "tbllUzGBvmP55UWEW"
+SHIPMENTS_TABLE = get_secret("SHIPMENTS_TABLE")
+PRICING_TABLE = get_secret("PRICING_TABLE")
+LOADS_TABLE = get_secret("LOADS_TABLE")
+UPDATES_LOG_TABLE = get_secret("UPDATES_LOG_TABLE")
 
 # Email
-EMAIL_REMITENTE = "alejandrojsuarezp@gmail.com"
-EMAIL_CONTRASENA = "jcrx wouv ubpo dznv"
-EMAIL_DESTINATARIO = "alejandrojsuarezp@gmail.com"
+EMAIL_REMITENTE = get_secret("EMAIL_REMITENTE")
+EMAIL_CONTRASENA = get_secret("EMAIL_CONTRASENA")
+EMAIL_DESTINATARIO = get_secret("EMAIL_DESTINATARIO")
 
 # Limites logisticos
 DISTANCIA_MAX_MILLAS = 150
