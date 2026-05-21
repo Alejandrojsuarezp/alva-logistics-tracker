@@ -453,7 +453,7 @@ elif pagina == "Truck Builder":
 
     slots = st.session_state.tb_slots
 
-    total = sum(1 for r in slots for c in slots[r] if slots[r][c])
+    total = sum(1 for r in range(ROWS) for c in range(COLS) if slots[r][c])
     col_heights = []
     for c in range(COLS):
         h = DECK_H
