@@ -17,6 +17,9 @@ st.set_page_config(
     layout="wide"
 )
 
+# Auto-refresh cada 30 segundos
+st.markdown("""<meta http-equiv="refresh" content="30">""", unsafe_allow_html=True)
+
 # Sidebar navegacion
 st.sidebar.title("🚛 Alva Logistics")
 st.sidebar.markdown("**Sistema de Transporte**")
@@ -86,23 +89,52 @@ elif pagina == "Shipments":
     with st.spinner("Cargando shipments..."):
         shipments = get_all_shipments()
 
-    filtro = st.selectbox("Filtrar por status", [
-        "Todos", "Pending Print", "In Progress", "Ready", "Shipped"
-    ])
+    col_filter, col_count = st.columns([3, 1])
+    with col_filter:
+        filtro = st.selectbox("Filtrar por status", [
+            "Todos", "Pending Print", "In Progress", "Ready", "Shipped"
+        ])
 
     if filtro != "Todos":
-        shipments = [s for s in shipments if s["warehouse_status"] == filtro]
+        shipments_filtrados = [s for s in shipments if s["warehouse_status"] == filtro]
+    else:
+        shipments_filtrados = shipments
 
-    if shipments:
-        df = pd.DataFrame(shipments)[[
+    with col_count:
+        st.metric("Total", len(shipments_filtrados))
+
+    if shipments_filtrados:
+        df = pd.DataFrame(shipments_filtrados)[[
             "shipment_number", "customer", "city", "state",
             "weight", "bundles", "trailer_type", "warehouse_status", "delivery_date"
         ]]
         df.columns = ["Shipment", "Cliente", "Ciudad", "Estado", "Peso", "Bultos", "Trailer", "Status", "Fecha Entrega"]
         st.dataframe(df, use_container_width=True, hide_index=True)
-        st.caption(f"Total: {len(shipments)} shipments")
     else:
         st.info("No hay shipments con ese filtro.")
+
+    st.markdown("---")
+    st.subheader("Actualizar Warehouse Status")
+    st.caption("Selecciona un shipment y cambia su status directamente desde aqui.")
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        numeros = [s["shipment_number"] for s in shipments]
+        shipment_sel = st.selectbox("Shipment", numeros)
+    with col2:
+        nuevo_status = st.selectbox("Nuevo Status", [
+            "Pending Print", "In Progress", "Ready", "Shipped"
+        ])
+    with col3:
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("Actualizar Status"):
+            from airtable_connection import update_record
+            from config import SHIPMENTS_TABLE
+            shipment_obj = next((s for s in shipments if s["shipment_number"] == shipment_sel), None)
+            if shipment_obj:
+                result = update_record(SHIPMENTS_TABLE, shipment_obj["id"], {"Warehouse Status": nuevo_status})
+                st.success(f"Status de {shipment_sel} actualizado a {nuevo_status}")
+                st.rerun()
 
 # ── LOADS ──────────────────────────────────
 elif pagina == "Loads":
@@ -132,21 +164,27 @@ elif pagina == "Pricing":
     with st.spinner("Cargando cotizaciones..."):
         quotes = get_pricing()
 
-    filtro_status = st.selectbox("Filtrar por status", [
-        "Todos", "Pending", "Selected", "Lost"
-    ])
+    col_filter, col_count = st.columns([3, 1])
+    with col_filter:
+        filtro_status = st.selectbox("Filtrar por status", [
+            "Todos", "Pending", "Selected", "Lost"
+        ])
 
     if filtro_status != "Todos":
-        quotes = [q for q in quotes if q["status"] == filtro_status]
+        quotes_filtrados = [q for q in quotes if q["status"] == filtro_status]
+    else:
+        quotes_filtrados = quotes
 
-    if quotes:
-        df = pd.DataFrame(quotes)[[
+    with col_count:
+        st.metric("Total", len(quotes_filtrados))
+
+    if quotes_filtrados:
+        df = pd.DataFrame(quotes_filtrados)[[
             "quote_number", "carrier", "freight_cost",
             "sales_value", "profit", "status"
         ]]
         df.columns = ["Quote #", "Carrier", "Flete", "Sales Value", "Profit", "Status"]
         st.dataframe(df, use_container_width=True, hide_index=True)
-        st.caption(f"Total: {len(quotes)} cotizaciones")
     else:
         st.info("No hay cotizaciones con ese filtro.")
 
