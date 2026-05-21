@@ -84,17 +84,39 @@ def get_loads():
     loads = []
     for record in records:
         fields = record.get("fields", {})
+        
+        # Get carrier from lookup
+        carrier_raw = fields.get("Carrier", "")
+        if isinstance(carrier_raw, list):
+            carrier = carrier_raw[0] if carrier_raw else ""
+        else:
+            carrier = carrier_raw
+
+        # Get freight cost from lookup
+        freight_raw = fields.get("Freight Cost", 0)
+        if isinstance(freight_raw, list):
+            freight = freight_raw[0] if freight_raw else 0
+        else:
+            freight = freight_raw
+
+        # Get sales value from lookup
+        sales_raw = fields.get("Sales Value", 0)
+        if isinstance(sales_raw, list):
+            sales = sales_raw[0] if sales_raw else 0
+        else:
+            sales = sales_raw
+
         loads.append({
             "id": record["id"],
             "load_number": fields.get("Load Number", ""),
-            "carrier": fields.get("Carrier", ""),
-            "total_weight": fields.get("Total Weight", 0),
+            "carrier": carrier,
+            "total_weight": f"{int(fields.get('Total Weight', 0)):,}",
             "total_bundles": fields.get("Total Bundles", 0),
             "destinations": fields.get("Destinations", []),
             "load_status": fields.get("Load Status", ""),
             "eta_pickup": format_date(fields.get("ETA Pickup", "")),
-            "freight_cost": fields.get("Freight Cost", 0),
-            "sales_value": fields.get("Sales Value", 0),
+            "freight_cost": freight,
+            "sales_value": sales,
             "freight_pct": fields.get("Freight %", 0)
         })
     return loads
