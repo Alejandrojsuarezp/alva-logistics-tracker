@@ -390,20 +390,36 @@ elif pagina == "Truck Builder":
     st.title("Truck Builder")
     st.markdown("---")
 
-    with st.spinner("Loading bundle dimensions..."):
-        dimensions = get_bundle_dimensions()
-
-    bundles_js = "const BUNDLES_DB = {"
-    for d in dimensions:
-        size_key = d['size'].replace('"', '').strip()
-        key = f"{size_key}_{int(d['length_ft'])}"
-        bundles_js += f'"{key}":{{size:"{size_key}",length_ft:{int(d["length_ft"])},length_in:{d["length_in"]},width_in:{d["width_in"]},height_in:{d["height_in"]}}},'
-    bundles_js += "};"
-
-    size_order = ["1/2","3/4","1","1-1/4","1-1/2","2","2-1/2","3","3-1/2","4","5","6","8"]
     size_options = ""
-    for size in size_order:
+    for size in ["1/2","3/4","1","1-1/4","1-1/2","2","2-1/2","3","3-1/2","4","5","6","8"]:
         size_options += f'<option value="{size}">{size}"</option>'
+
+    bundles_js = """const BUNDLES_DB = {
+"1/2_10":{size:"1/2",length_ft:10,length_in:127,width_in:30,height_in:16},
+"3/4_10":{size:"3/4",length_ft:10,length_in:126,width_in:38,height_in:15},
+"1_10":{size:"1",length_ft:10,length_in:127,width_in:36,height_in:19},
+"1-1/4_10":{size:"1-1/4",length_ft:10,length_in:134,width_in:42,height_in:24},
+"1-1/2_10":{size:"1-1/2",length_ft:10,length_in:131,width_in:43,height_in:22},
+"2_10":{size:"2",length_ft:10,length_in:135,width_in:37,height_in:22},
+"2-1/2_10":{size:"2-1/2",length_ft:10,length_in:135,width_in:43,height_in:20},
+"3_10":{size:"3",length_ft:10,length_in:138,width_in:42,height_in:27},
+"3-1/2_10":{size:"3-1/2",length_ft:10,length_in:135,width_in:41,height_in:28},
+"4_10":{size:"4",length_ft:10,length_in:138,width_in:45,height_in:28},
+"5_10":{size:"5",length_ft:10,length_in:141,width_in:42,height_in:32},
+"6_10":{size:"6",length_ft:10,length_in:141,width_in:42,height_in:32},
+"8_10":{size:"8",length_ft:10,length_in:135,width_in:40,height_in:31},
+"1_20":{size:"1",length_ft:20,length_in:254,width_in:36,height_in:19},
+"1-1/4_20":{size:"1-1/4",length_ft:20,length_in:268,width_in:42,height_in:24},
+"1-1/2_20":{size:"1-1/2",length_ft:20,length_in:262,width_in:43,height_in:22},
+"2_20":{size:"2",length_ft:20,length_in:271,width_in:37,height_in:22},
+"2-1/2_20":{size:"2-1/2",length_ft:20,length_in:270,width_in:43,height_in:20},
+"3_20":{size:"3",length_ft:20,length_in:276,width_in:42,height_in:27},
+"3-1/2_20":{size:"3-1/2",length_ft:20,length_in:270,width_in:41,height_in:28},
+"4_20":{size:"4",length_ft:20,length_in:277,width_in:45,height_in:28},
+"5_20":{size:"5",length_ft:20,length_in:283,width_in:42,height_in:32},
+"6_20":{size:"6",length_ft:20,length_in:282,width_in:42,height_in:32},
+"8_20":{size:"8",length_ft:20,length_in:270,width_in:40,height_in:31}
+};"""
 
     html_final = """
     <style>
