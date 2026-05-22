@@ -485,8 +485,21 @@ elif pagina == "Truck Builder":
                     bg = "#E1F5EE"
                     border = "2px dashed #1D9E75"
 
-            cell_html = f"""
-            <div style='
+cell_html = (
+                f"<div style='"
+                f"background:{bg};"
+                f"border:{border};"
+                f"border-radius:8px;"
+                f"height:80px;"
+                f"display:flex;"
+                f"flex-direction:column;"
+                f"align-items:center;"
+                f"justify-content:center;"
+                f"color:{text_color};"
+                f"margin:3px;"
+                f"cursor:pointer;"
+                f"'>{content}</div>"
+            )
                 background:{bg};
                 border:{border};
                 {center_border}
