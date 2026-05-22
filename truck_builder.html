@@ -5,53 +5,85 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Alva Truck Builder</title>
 <style>
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f2f5; color: #1a1a1a; }
-header { background: #1e3a5f; color: white; padding: 12px 24px; display: flex; align-items: center; gap: 12px; }
-header h1 { font-size: 18px; font-weight: 600; }
-header span { font-size: 12px; opacity: 0.7; }
-.container { display: grid; grid-template-columns: 240px 1fr; height: calc(100vh - 48px); }
-.sidebar { background: white; border-right: 1px solid #e0e0e0; padding: 14px; overflow-y: auto; }
-.main { padding: 14px; overflow-y: auto; }
-.section { margin-bottom: 18px; }
-.section h3 { font-size: 11px; font-weight: 700; color: #999; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
-.field { margin-bottom: 8px; }
-.field label { font-size: 12px; color: #666; display: block; margin-bottom: 3px; }
-.field select { width: 100%; padding: 7px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; background: white; }
-.btn { width: 100%; padding: 9px; border: none; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; margin-bottom: 6px; }
-.btn-primary { background: #1e3a5f; color: white; }
-.btn-clear { background: #fee; color: #c00; border: 1px solid #fcc; }
-.metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 10px; }
-.metric { background: #f5f7fa; border-radius: 6px; padding: 8px; text-align: center; }
-.metric .val { font-size: 18px; font-weight: 700; color: #1e3a5f; }
-.metric .lbl { font-size: 10px; color: #999; margin-top: 1px; }
-.alert { padding: 7px 10px; border-radius: 6px; font-size: 12px; margin-bottom: 8px; }
-.alert-ok { background: #e1f5ee; color: #0f6e56; }
-.alert-err { background: #fee2e2; color: #991b1b; }
-.panel { background: white; border-radius: 10px; border: 1px solid #e0e0e0; padding: 12px; margin-bottom: 12px; }
-.panel-title { font-size: 12px; font-weight: 600; color: #555; text-align: center; margin-bottom: 8px; }
-canvas { display: block; }
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f0f2f5;color:#1a1a1a;}
+header{background:#1e3a5f;color:white;padding:12px 24px;display:flex;align-items:center;gap:12px;}
+header h1{font-size:18px;font-weight:600;}
+header span{font-size:12px;opacity:0.7;}
+
+/* TRAILER SELECTOR */
+.selector{padding:24px;background:white;border-bottom:1px solid #e0e0e0;}
+.selector h2{font-size:14px;font-weight:600;color:#666;margin-bottom:16px;text-transform:uppercase;letter-spacing:0.05em;}
+.trailer-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;}
+.trailer-card{border:2px solid #e0e0e0;border-radius:10px;padding:12px;cursor:pointer;transition:all .15s;background:white;text-align:center;}
+.trailer-card:hover{border-color:#185FA5;background:#f0f6ff;}
+.trailer-card.active{border-color:#185FA5;background:#e6f1fb;}
+.trailer-card .name{font-size:13px;font-weight:600;color:#1e3a5f;margin-bottom:4px;}
+.trailer-card .dims{font-size:11px;color:#888;}
+.trailer-card svg{margin:8px auto;display:block;}
+
+/* BUILDER */
+.builder{display:none;grid-template-columns:220px 1fr;height:calc(100vh - 140px);}
+.builder.active{display:grid;}
+.sidebar{background:white;border-right:1px solid #e0e0e0;padding:14px;overflow-y:auto;}
+.sidebar h3{font-size:11px;font-weight:700;color:#999;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;}
+.field{margin-bottom:10px;}
+.field label{font-size:12px;color:#666;display:block;margin-bottom:3px;}
+.field select{width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;background:white;}
+.btn{width:100%;padding:9px;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:6px;}
+.btn-primary{background:#1e3a5f;color:white;}
+.btn-clear{background:#fee;color:#c00;border:1px solid #fcc;}
+.metrics{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:12px;}
+.metric{background:#f5f7fa;border-radius:6px;padding:8px;text-align:center;}
+.metric .val{font-size:16px;font-weight:700;color:#1e3a5f;}
+.metric .lbl{font-size:10px;color:#999;margin-top:1px;}
+.alert{padding:7px 10px;border-radius:6px;font-size:12px;margin-bottom:8px;}
+.alert-ok{background:#e1f5ee;color:#0f6e56;}
+.alert-warn{background:#fff3cd;color:#856404;}
+.alert-err{background:#fee2e2;color:#991b1b;}
+.section-divider{border-top:1px solid #e0e0e0;margin:10px 0;padding-top:10px;}
+
+/* MAIN AREA */
+.main{padding:14px;overflow-y:auto;display:flex;flex-direction:column;gap:14px;}
+.panel{background:white;border-radius:10px;border:1px solid #e0e0e0;padding:12px;}
+.panel-title{font-size:12px;font-weight:600;color:#555;text-align:center;margin-bottom:8px;}
 
 /* GRID TABLE */
-.grid-wrap { overflow-x: auto; }
-table.tgrid { border-collapse: collapse; width: 100%; }
-table.tgrid td { border: 2px dashed #ccc; width: 25%; height: 60px; text-align: center; vertical-align: middle; cursor: pointer; font-size: 13px; font-weight: 600; transition: background .1s; position: relative; }
-table.tgrid td:hover { border-color: #888; }
-table.tgrid td.filled { border-style: solid; }
-table.tgrid tr.center-row td { border-bottom: 3px solid #222; }
-.cell-label { font-size: 11px; font-weight: 700; }
-.cell-sub { font-size: 10px; font-weight: 400; opacity: 0.8; }
+table.tgrid{border-collapse:collapse;width:100%;}
+table.tgrid td{border:2px dashed #ddd;height:52px;text-align:center;vertical-align:middle;cursor:pointer;font-size:11px;font-weight:600;transition:background .1s;position:relative;}
+table.tgrid td:hover{border-color:#185FA5;background:#f0f6ff;}
+table.tgrid td.filled{border-style:solid;}
+table.tgrid td.empty{color:#ccc;}
+.grid-labels{display:flex;justify-content:space-between;font-size:11px;color:#999;margin-top:4px;padding:0 2px;}
+.grid-header{display:flex;justify-content:space-between;font-size:11px;color:#999;margin-bottom:4px;}
+
+/* VIEWS GRID */
+.views-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+canvas{display:block;width:100%;}
+
+/* STEP DECK BADGE */
+.step-badge{display:inline-block;font-size:9px;padding:1px 5px;border-radius:3px;margin-left:4px;font-weight:700;}
+.step-top{background:#E6F1FB;color:#185FA5;}
+.step-low{background:#E1F5EE;color:#0F6E56;}
 </style>
 </head>
 <body>
 <header>
   <div>🚛</div>
   <h1>Alva Truck Builder</h1>
-  <span>Flatbed 48' — Click cell to place/remove bundle</span>
+  <span id="header-trailer">Select a trailer to begin</span>
 </header>
-<div class="container">
+
+<!-- TRAILER SELECTOR -->
+<div class="selector">
+  <h2>Select Trailer Type</h2>
+  <div class="trailer-grid" id="trailer-grid"></div>
+</div>
+
+<!-- BUILDER -->
+<div class="builder" id="builder">
   <div class="sidebar">
-    <div class="section">
+    <div style="margin-bottom:12px;">
       <h3>Bundle</h3>
       <div class="field">
         <label>Pipe size</label>
@@ -68,40 +100,45 @@ table.tgrid tr.center-row td { border-bottom: 3px solid #222; }
         <label>Length</label>
         <select id="sel-len"><option value="10">10 ft</option><option value="20">20 ft</option></select>
       </div>
-      <button class="btn btn-primary">✓ Select — then click cells</button>
+      <button class="btn btn-primary" id="btn-place">+ Click cells to place</button>
       <button class="btn btn-clear" onclick="clearAll()">Clear All</button>
     </div>
 
-    <div class="section">
+    <div class="section-divider">
       <h3>Summary</h3>
       <div id="alert-box"></div>
       <div class="metrics">
         <div class="metric"><div class="val" id="m-total">0</div><div class="lbl">Bundles</div></div>
-        <div class="metric"><div class="val" id="m-height">—</div><div class="lbl">Max Height</div></div>
-        <div class="metric"><div class="val" id="m-groups">0</div><div class="lbl">Col groups</div></div>
-        <div class="metric"><div class="val" id="m-length">0ft</div><div class="lbl">Est. length</div></div>
+        <div class="metric"><div class="val" id="m-height">—</div><div class="lbl">Max height</div></div>
+        <div class="metric"><div class="val" id="m-right">0</div><div class="lbl">Right side</div></div>
+        <div class="metric"><div class="val" id="m-left">0</div><div class="lbl">Left side</div></div>
       </div>
+    </div>
+
+    <div class="section-divider">
+      <h3>Bundle count by size</h3>
+      <div id="bundle-list" style="font-size:12px;"></div>
+    </div>
+
+    <div class="section-divider" style="margin-top:auto;">
+      <button class="btn" style="background:#f5f7fa;color:#1e3a5f;border:1px solid #ddd;" onclick="changeTrailer()">Change Trailer</button>
     </div>
   </div>
 
   <div class="main">
+    <!-- TOP VIEW -->
     <div class="panel">
-      <div class="panel-title">
-        Loading Diagram — Top View &nbsp;|&nbsp; 
-        <span style="font-weight:400;color:#999">Click empty = place • Click filled = remove</span>
+      <div class="panel-title">Loading Diagram — Top View &nbsp;|&nbsp; <span style="font-weight:400;color:#999">Click cell to place · Click again to remove</span></div>
+      <div class="grid-header">
+        <span style="font-size:11px;color:#185FA5;font-weight:600;">← FRONT</span>
+        <span style="font-size:11px;color:#999;">BACK →</span>
       </div>
-      <div style="display:flex;justify-content:space-between;font-size:11px;color:#999;margin-bottom:4px">
-        <span>FRONT →</span><span>← BACK</span>
-      </div>
-      <div class="grid-wrap">
-        <table class="tgrid" id="tgrid"></table>
-      </div>
-      <div style="display:flex;justify-content:space-between;font-size:11px;color:#999;margin-top:4px">
-        <span>RIGHT SIDE</span><span>LEFT SIDE</span>
-      </div>
+      <table class="tgrid" id="tgrid"></table>
+      <div class="grid-labels"><span>RIGHT SIDE</span><span>LEFT SIDE</span></div>
     </div>
 
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+    <!-- FRONT + SIDE VIEWS -->
+    <div class="views-grid">
       <div class="panel">
         <div class="panel-title">Front View (Width × Height)</div>
         <canvas id="cv-front" height="180"></canvas>
@@ -110,11 +147,20 @@ table.tgrid tr.center-row td { border-bottom: 3px solid #222; }
         <div class="panel-title">Side View (Length × Height)</div>
         <canvas id="cv-side" height="180"></canvas>
       </div>
+      <div class="panel">
+        <div class="panel-title">Right Side</div>
+        <canvas id="cv-right" height="180"></canvas>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Left Side</div>
+        <canvas id="cv-left" height="180"></canvas>
+      </div>
     </div>
 
+    <!-- 3D VIEW -->
     <div class="panel">
-      <div class="panel-title">3D View — drag to rotate</div>
-      <canvas id="cv-360" height="300"></canvas>
+      <div class="panel-title">3D View — drag to rotate · scroll to zoom</div>
+      <canvas id="cv-360" height="340" style="cursor:grab;"></canvas>
     </div>
   </div>
 </div>
@@ -140,245 +186,426 @@ const COLORS = {
   "1-1/2":"#D85A30","2":"#993C1D","2-1/2":"#D4537E","3":"#993556",
   "3-1/2":"#378ADD","4":"#185FA5","5":"#BA7517","6":"#854F0B","8":"#639922"
 };
+const TRAILERS = [
+  {id:"fb48", name:"Flatbed 48'", type:"flatbed", l:576, w:102, deck:60, legal:162, color:"#185FA5"},
+  {id:"fb53", name:"Flatbed 53'", type:"flatbed", l:636, w:102, deck:60, legal:162, color:"#185FA5"},
+  {id:"sd48", name:"Stepdeck 48'", type:"stepdeck", l:576, w:102, deckHigh:60, deckLow:42, legal:162, color:"#0F6E56"},
+  {id:"sd53", name:"Stepdeck 53'", type:"stepdeck", l:636, w:102, deckHigh:60, deckLow:42, legal:162, color:"#0F6E56"},
+  {id:"hs40", name:"Hotshot 40'", type:"hotshot", l:480, w:102, deck:33, legal:162, color:"#BA7517"},
+];
 
-const TW=102, TL=576, DECK=60, LEGAL=162;
-// Grid: 8 rows (along trailer length) x 4 cols (across width)
-// Row 0-3 = RIGHT SIDE, Row 4-7 = LEFT SIDE (divided by center line)
-const ROWS=8, COLS=4;
-let grid = Array.from({length:ROWS}, ()=>Array(COLS).fill(null));
+// Grid: SECTIONS x LEVELS x 2 sides
+// grid[section][level][side] — side 0=RIGHT, 1=LEFT
+const SECTIONS=4, LEVELS=4;
+let grid, currentTrailer, rotX=0.35, rotY=-0.55, scale3d=0.36, dragging=false, lastX=0, lastY=0;
 
-function getB(){
-  const size=document.getElementById('sel-size').value;
-  const len=parseInt(document.getElementById('sel-len').value);
-  const b=BUNDLES[size][len]; if(!b) return null;
-  return {size,len,w:b.w,h:b.h,l:b.l};
+function initGrid(){
+  grid = Array.from({length:SECTIONS},()=>
+    Array.from({length:LEVELS},()=>
+      [null, null]
+    )
+  );
 }
 
-function onSizeChange(){
-  const size=document.getElementById('sel-size').value;
-  const lenSel=document.getElementById('sel-len');
-  lenSel.innerHTML='';
-  if(BUNDLES[size][10]) lenSel.innerHTML+='<option value="10">10 ft</option>';
-  if(BUNDLES[size][20]) lenSel.innerHTML+='<option value="20">20 ft</option>';
+// BUILD TRAILER SELECTOR
+function buildSelector(){
+  const container = document.getElementById('trailer-grid');
+  TRAILERS.forEach(t=>{
+    const card = document.createElement('div');
+    card.className = 'trailer-card';
+    card.onclick = ()=>selectTrailer(t);
+    const svgH = t.type==='stepdeck' ? 60 : 50;
+    card.innerHTML = `
+      <div class="name">${t.name}</div>
+      <div class="dims">${t.l}" × ${t.w}" · ${t.legal}" legal</div>
+      ${trailerSVG(t)}
+    `;
+    container.appendChild(card);
+  });
 }
 
-function clearAll(){
-  grid=Array.from({length:ROWS},()=>Array(COLS).fill(null));
+function trailerSVG(t){
+  const W=120, H=50;
+  const dkH = t.type==='stepdeck' ? t.deckLow : (t.deck||33);
+  const scale = 30/(dkH);
+  const deckPx = Math.min(dkH*0.15, 14);
+  if(t.type==='stepdeck'){
+    return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
+      <rect x="5" y="${H-deckPx-2}" width="${W-10}" height="${deckPx}" rx="2" fill="${t.color}" opacity="0.3"/>
+      <rect x="5" y="${H-deckPx-16}" width="20" height="14" rx="1" fill="${t.color}" opacity="0.7"/>
+      <rect x="25" y="${H-deckPx-22}" width="${W-30}" height="20" rx="1" fill="${t.color}" opacity="0.7"/>
+      <line x1="5" y1="6" x2="${W-5}" y2="6" stroke="#E24B4A" stroke-width="1" stroke-dasharray="3,2"/>
+      <text x="${W/2}" y="4" text-anchor="middle" font-size="7" fill="#E24B4A">13'6"</text>
+    </svg>`;
+  }
+  return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
+    <rect x="5" y="${H-deckPx-2}" width="${W-10}" height="${deckPx}" rx="2" fill="${t.color}" opacity="0.3"/>
+    <rect x="5" y="${H-deckPx-18}" width="${W-10}" height="16" rx="1" fill="${t.color}" opacity="0.7"/>
+    <line x1="5" y1="6" x2="${W-5}" y2="6" stroke="#E24B4A" stroke-width="1" stroke-dasharray="3,2"/>
+    <text x="${W/2}" y="4" text-anchor="middle" font-size="7" fill="#E24B4A">13'6"</text>
+  </svg>`;
+}
+
+function selectTrailer(t){
+  currentTrailer = t;
+  initGrid();
+  document.querySelectorAll('.trailer-card').forEach((c,i)=>{
+    c.classList.toggle('active', TRAILERS[i].id===t.id);
+  });
+  document.getElementById('header-trailer').textContent = t.name + ' — ' + t.l + '" × ' + t.w + '"';
+  document.getElementById('builder').classList.add('active');
+  buildTGrid();
   update();
 }
 
-function buildGrid(){
-  const tbl=document.getElementById('tgrid');
-  tbl.innerHTML='';
-  for(let r=0;r<ROWS;r++){
-    const tr=document.createElement('tr');
-    // Center line after row 3
-    if(r===3) tr.classList.add('center-row');
-    for(let c=0;c<COLS;c++){
-      const td=document.createElement('td');
-      const s=grid[r][c];
-      if(s){
-        td.classList.add('filled');
-        td.style.background=COLORS[s.size]+'22';
-        td.style.borderColor=COLORS[s.size];
-        td.style.color=COLORS[s.size];
-        td.innerHTML='<div class="cell-label">'+s.size+'"</div><div class="cell-sub">'+s.len+'ft</div>';
-      }
-      td.onclick=()=>{
-        if(grid[r][c]){ grid[r][c]=null; }
-        else { const b=getB(); if(b) grid[r][c]=b; }
-        update();
-      };
-      tr.appendChild(td);
+function changeTrailer(){
+  document.getElementById('builder').classList.remove('active');
+  document.querySelectorAll('.trailer-card').forEach(c=>c.classList.remove('active'));
+}
+
+// BUILD GRID TABLE
+function buildTGrid(){
+  const tbl = document.getElementById('tgrid');
+  tbl.innerHTML = '';
+  const t = currentTrailer;
+  const isStep = t.type==='stepdeck';
+
+  // Header row
+  const hrow = document.createElement('tr');
+  const hth = document.createElement('th');
+  hth.colSpan = SECTIONS*2;
+  hth.style = 'font-size:11px;color:#999;font-weight:400;padding:2px 0 4px;text-align:left;';
+  hth.textContent = isStep ? 'Level 1 = floor · Levels 2-4 = stacked up' : 'Level 1 = floor · Levels 2-4 = stacked up';
+  hrow.appendChild(hth);
+  tbl.appendChild(hrow);
+
+  for(let lv=0; lv<LEVELS; lv++){
+    const tr = document.createElement('tr');
+    // Level label
+    const lvTd = document.createElement('td');
+    lvTd.style = 'border:none;font-size:10px;color:#aaa;width:20px;padding-right:4px;white-space:nowrap;';
+    lvTd.textContent = 'L'+(lv+1);
+    tr.appendChild(lvTd);
+
+    for(let sec=0; sec<SECTIONS; sec++){
+      // RIGHT cell
+      const tdR = document.createElement('td');
+      renderCell(tdR, sec, lv, 0);
+      tr.appendChild(tdR);
+    }
+    // Center divider
+    const divTd = document.createElement('td');
+    divTd.style='border:none;width:8px;background:linear-gradient(to right,#ddd,#ddd);background-size:2px 100%;background-repeat:no-repeat;background-position:center;';
+    tr.appendChild(divTd);
+
+    for(let sec=0; sec<SECTIONS; sec++){
+      // LEFT cell
+      const tdL = document.createElement('td');
+      renderCell(tdL, sec, lv, 1);
+      tr.appendChild(tdL);
     }
     tbl.appendChild(tr);
   }
 }
 
-function update(){
-  buildGrid();
-  drawFront();
-  drawSide();
-  draw360();
-  updateStats();
-}
-
-function updateStats(){
-  let total=0;
-  let maxH=DECK;
-  // Each column (c) stacks bundles per row
-  for(let c=0;c<COLS;c++){
-    let colH=DECK;
-    for(let r=0;r<ROWS;r++){
-      const s=grid[r][c];
-      if(s){ total++; colH+=s.h; }
-    }
-    if(colH>maxH) maxH=colH;
+function renderCell(td, sec, lv, side){
+  const s = grid[sec][lv][side];
+  if(s){
+    td.classList.add('filled');
+    td.classList.remove('empty');
+    const color = COLORS[s.size]||'#378ADD';
+    td.style.background = color+'22';
+    td.style.borderColor = color;
+    td.style.color = color;
+    td.innerHTML = `<div style="font-size:11px;font-weight:700;">${s.size}"</div><div style="font-size:9px;">${s.len}ft</div>`;
+  } else {
+    td.classList.remove('filled');
+    td.classList.add('empty');
+    td.style.background = '';
+    td.style.borderColor = '';
+    td.style.color = '#ccc';
+    td.innerHTML = '+';
   }
-  // Estimate length: how many rows along trailer have bundles
-  let maxRow=0;
-  for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++) if(grid[r][c]) maxRow=r;
-  const sLen=grid[maxRow].find(s=>s);
-  const estLen=sLen ? (maxRow+1)*sLen.l : 0;
-  const ft=Math.floor(maxH/12), inch=Math.round(maxH%12);
-  document.getElementById('m-total').textContent=total;
-  document.getElementById('m-height').textContent=ft+"'"+inch+'"';
-  document.getElementById('m-groups').textContent=maxRow+1;
-  document.getElementById('m-length').textContent=Math.round(estLen/12)+'ft';
-  const ab=document.getElementById('alert-box');
-  if(maxH>LEGAL+DECK) ab.innerHTML='<div class="alert alert-err">Height exceeded — '+ft+"'"+inch+'" > 13\'6"</div>';
-  else if(total>0) ab.innerHTML='<div class="alert alert-ok">Load OK — '+ft+"'"+inch+'" tall</div>';
-  else ab.innerHTML='';
+  td.onclick = ()=>{
+    if(grid[sec][lv][side]){
+      grid[sec][lv][side] = null;
+    } else {
+      const size = document.getElementById('sel-size').value;
+      const len = parseInt(document.getElementById('sel-len').value);
+      const b = BUNDLES[size][len];
+      if(b) grid[sec][lv][side] = {size,len,w:b.w,h:b.h,l:b.l};
+    }
+    buildTGrid();
+    update();
+  };
 }
 
-// FRONT VIEW
+function clearAll(){ initGrid(); buildTGrid(); update(); }
+
+function onSizeChange(){
+  const size = document.getElementById('sel-size').value;
+  const lenSel = document.getElementById('sel-len');
+  lenSel.innerHTML='';
+  if(BUNDLES[size][10]) lenSel.innerHTML+='<option value="10">10 ft</option>';
+  if(BUNDLES[size][20]) lenSel.innerHTML+='<option value="20">20 ft</option>';
+}
+
+function getStats(){
+  const t = currentTrailer;
+  const deckH = t.type==='stepdeck' ? t.deckLow : t.deck;
+  let total=0, rightCount=0, leftCount=0;
+  let maxH = deckH;
+  const counts = {};
+
+  for(let sec=0;sec<SECTIONS;sec++){
+    for(let side=0;side<2;side++){
+      let colH = deckH;
+      for(let lv=0;lv<LEVELS;lv++){
+        const s = grid[sec][lv][side];
+        if(s){
+          total++;
+          colH += s.h;
+          if(side===0) rightCount++; else leftCount++;
+          const k = s.size+'"_'+s.len+'ft';
+          counts[k] = (counts[k]||0)+1;
+        }
+      }
+      if(colH>maxH) maxH=colH;
+    }
+  }
+  return{total,rightCount,leftCount,maxH,counts,deckH};
+}
+
+function update(){
+  const st = getStats();
+  const t = currentTrailer;
+  const ft=Math.floor(st.maxH/12), inch=Math.round(st.maxH%12);
+  document.getElementById('m-total').textContent=st.total;
+  document.getElementById('m-height').textContent=ft+"'"+inch+'"';
+  document.getElementById('m-right').textContent=st.rightCount;
+  document.getElementById('m-left').textContent=st.leftCount;
+
+  const ab=document.getElementById('alert-box');
+  if(st.maxH>t.legal+(t.type==='stepdeck'?t.deckLow:t.deck))
+    ab.innerHTML='<div class="alert alert-err">Height exceeded — '+ft+"'"+inch+'" > 13\'6"</div>';
+  else if(st.total>0)
+    ab.innerHTML='<div class="alert alert-ok">Load OK — '+ft+"'"+inch+'" tall</div>';
+  else ab.innerHTML='';
+
+  const bl=document.getElementById('bundle-list');
+  bl.innerHTML = Object.entries(st.counts).map(([k,v])=>{
+    const size=k.split('"')[0];
+    return `<div style="display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid #f0f0f0;">
+      <span style="color:${COLORS[size]||'#333'};font-weight:600;">${k.replace('_',' ')}</span>
+      <span style="font-weight:600;">${v}</span>
+    </div>`;
+  }).join('') || '<span style="color:#aaa">No bundles placed</span>';
+
+  drawFront(); drawSide(); drawRight(); drawLeft(); draw360();
+}
+
+// DRAWING HELPERS
+function drawTrailerBase(ctx,W,H,PAD,baseY,drawH,sL,sH,t,trailerLpx){
+  const deckH = t.type==='stepdeck'?t.deckLow:t.deck;
+  const deckPx=deckH*sH;
+  ctx.fillStyle='#aaaaaa';
+  ctx.fillRect(PAD,baseY-deckPx,trailerLpx,deckPx);
+  if(t.type==='stepdeck'){
+    const topDeckPx=t.deckHigh*sH;
+    ctx.fillStyle='#888888';
+    ctx.fillRect(PAD,baseY-topDeckPx,40*sL,topDeckPx-deckPx);
+  }
+  ctx.strokeStyle='#E24B4A';ctx.lineWidth=1.5;ctx.setLineDash([5,4]);
+  const limY=baseY-deckH*sH-t.legal*sH;
+  ctx.beginPath();ctx.moveTo(PAD-4,limY);ctx.lineTo(PAD+trailerLpx+4,limY);ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle='#E24B4A';ctx.font='9px sans-serif';ctx.fillText("13'6\"",PAD+trailerLpx+5,limY+4);
+  return {deckPx, limY};
+}
+
 function drawFront(){
   const cv=document.getElementById('cv-front');
   cv.width=cv.parentElement.clientWidth-24;
   const ctx=cv.getContext('2d');
-  const W=cv.width,H=cv.height;
+  const W=cv.width,H=180;
   ctx.clearRect(0,0,W,H);
-  const PAD=30,baseY=H-20,drawH=H-40,drawW=W-PAD*2;
-  const TOTAL=LEGAL+DECK;
-  const sH=drawH/TOTAL,sW=drawW/(TW+10);
-  const deckPx=DECK*sH,trailerWpx=TW*sW,offsetX=PAD+5;
-
-  ctx.fillStyle='#aaa';
-  ctx.fillRect(offsetX,baseY-deckPx,trailerWpx,deckPx);
-
+  const t=currentTrailer;
+  const deckH=t.type==='stepdeck'?t.deckLow:t.deck;
+  const PAD=30,baseY=H-25,drawH=H-45;
+  const TOTAL=t.legal+deckH;
+  const sH=drawH/TOTAL,sW=(W-PAD*2-10)/t.w;
+  const deckPx=deckH*sH,trailerWpx=t.w*sW,offsetX=PAD+5;
+  ctx.fillStyle='#aaa';ctx.fillRect(offsetX,baseY-deckPx,trailerWpx,deckPx);
   ctx.strokeStyle='#E24B4A';ctx.lineWidth=1.5;ctx.setLineDash([5,4]);
-  const limY=baseY-deckPx-LEGAL*sH;
+  const limY=baseY-deckPx-t.legal*sH;
   ctx.beginPath();ctx.moveTo(offsetX-4,limY);ctx.lineTo(offsetX+trailerWpx+4,limY);ctx.stroke();
   ctx.setLineDash([]);
-  ctx.fillStyle='#E24B4A';ctx.font='10px sans-serif';ctx.fillText("13'6\"",offsetX+trailerWpx+5,limY+4);
+  ctx.fillStyle='#E24B4A';ctx.font='9px sans-serif';ctx.fillText("13'6\"",offsetX+trailerWpx+5,limY+4);
 
-  // Draw columns - 4 columns across trailer width
-  const colW=TW/COLS*sW;
-  for(let c=0;c<COLS;c++){
-    let stackH=0;
-    for(let r=0;r<ROWS;r++){
-      const s=grid[r][c]; if(!s) continue;
-      const bX=offsetX+c*colW;
-      const bY=baseY-deckPx-(stackH+1)*s.h*sH;
-      ctx.fillStyle=COLORS[s.size]+'cc';
-      ctx.fillRect(bX+1,bY,colW-2,s.h*sH-1);
-      ctx.strokeStyle=COLORS[s.size];ctx.lineWidth=0.5;
-      ctx.strokeRect(bX+1,bY,colW-2,s.h*sH-1);
-      stackH++;
+  const cx=offsetX+trailerWpx/2;
+  // Right side bundles (left of center)
+  for(let sec=0;sec<SECTIONS;sec++){
+    let colH=deckH;
+    for(let lv=0;lv<LEVELS;lv++){
+      const s=grid[sec][lv][0];if(!s)continue;
+      const bW=s.w*sW, bH=s.h*sH;
+      const bX=cx-bW, bY=baseY-deckPx-colH*sH-bH;
+      ctx.fillStyle=COLORS[s.size]+'cc';ctx.fillRect(bX,bY,bW,bH-1);
+      ctx.strokeStyle=COLORS[s.size];ctx.lineWidth=0.5;ctx.strokeRect(bX,bY,bW,bH-1);
+      colH+=s.h; break;
     }
   }
-
+  // Left side bundles (right of center)
+  for(let sec=0;sec<SECTIONS;sec++){
+    let colH=deckH;
+    for(let lv=0;lv<LEVELS;lv++){
+      const s=grid[sec][lv][1];if(!s)continue;
+      const bW=s.w*sW, bH=s.h*sH;
+      const bX=cx, bY=baseY-deckPx-colH*sH-bH;
+      ctx.fillStyle=COLORS[s.size]+'cc';ctx.fillRect(bX,bY,bW,bH-1);
+      ctx.strokeStyle=COLORS[s.size];ctx.lineWidth=0.5;ctx.strokeRect(bX,bY,bW,bH-1);
+      colH+=s.h; break;
+    }
+  }
+  // Center line
   ctx.strokeStyle='#333';ctx.lineWidth=1.5;ctx.setLineDash([4,3]);
-  ctx.beginPath();ctx.moveTo(offsetX+trailerWpx/2,baseY-deckPx);ctx.lineTo(offsetX+trailerWpx/2,baseY);ctx.stroke();
-  ctx.setLineDash([]);
+  ctx.beginPath();ctx.moveTo(cx,baseY-deckPx);ctx.lineTo(cx,baseY);ctx.stroke();ctx.setLineDash([]);
   ctx.fillStyle='#666';ctx.font='10px sans-serif';ctx.textAlign='center';
-  ctx.fillText('102"',offsetX+trailerWpx/2,baseY+12);ctx.textAlign='left';
+  ctx.fillText('102"',cx,baseY+12);ctx.textAlign='left';
 }
 
-// SIDE VIEW
-function drawSide(){
-  const cv=document.getElementById('cv-side');
+function drawSideView(cvId,side,sideColor,sideLabel){
+  const cv=document.getElementById(cvId);
   cv.width=cv.parentElement.clientWidth-24;
   const ctx=cv.getContext('2d');
-  const W=cv.width,H=cv.height;
+  const W=cv.width,H=180;
   ctx.clearRect(0,0,W,H);
-  const PAD=8,baseY=H-20,drawH=H-40,drawW=W-PAD*2;
-  const TOTAL=LEGAL+DECK;
-  const sH=drawH/TOTAL,sL=drawW/(TL+20);
-  const deckPx=DECK*sH,trailerLpx=TL*sL;
+  const t=currentTrailer;
+  const deckH=t.type==='stepdeck'?t.deckLow:t.deck;
+  const PAD=8,baseY=H-25,drawH=H-45;
+  const TOTAL=t.legal+deckH;
+  const sH=drawH/TOTAL,sL=(W-PAD*2-25)/t.l;
+  const deckPx=deckH*sH,trailerLpx=t.l*sL;
+  const secL=t.l/SECTIONS;
 
-  ctx.fillStyle='#aaa';
-  ctx.fillRect(PAD,baseY-deckPx,trailerLpx,deckPx);
-
+  ctx.fillStyle='#aaa';ctx.fillRect(PAD,baseY-deckPx,trailerLpx,deckPx);
   ctx.strokeStyle='#E24B4A';ctx.lineWidth=1.5;ctx.setLineDash([5,4]);
-  const limY=baseY-deckPx-LEGAL*sH;
-  ctx.beginPath();ctx.moveTo(PAD-4,limY);ctx.lineTo(PAD+trailerLpx+4,limY);ctx.stroke();
-  ctx.setLineDash([]);
-  ctx.fillStyle='#E24B4A';ctx.font='10px sans-serif';ctx.fillText("13'6\"",PAD+trailerLpx+5,limY+4);
+  const limY=baseY-deckPx-t.legal*sH;
+  ctx.beginPath();ctx.moveTo(PAD-4,limY);ctx.lineTo(PAD+trailerLpx+4,limY);ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle='#E24B4A';ctx.font='9px sans-serif';ctx.fillText("13'6\"",PAD+trailerLpx+5,limY+4);
 
-  // Each row = one group along the trailer
-  for(let r=0;r<ROWS;r++){
-    const s=grid[r].find(s=>s); if(!s) continue;
-    const gX=PAD+r*s.l*sL;
-    const gW=s.l*sL-2;
-    // Stack height = number of filled cells in this row's column
-    let stackH=0;
-    for(let c=0;c<COLS;c++) if(grid[r][c]) stackH++;
-    for(let stack=0;stack<stackH;stack++){
-      const bY=baseY-deckPx-(stack+1)*s.h*sH;
-      ctx.fillStyle=COLORS[s.size]+'cc';
-      ctx.fillRect(gX,bY,gW,s.h*sH-1);
-      ctx.strokeStyle=COLORS[s.size];ctx.lineWidth=0.5;
-      ctx.strokeRect(gX,bY,gW,s.h*sH-1);
+  // Section dividers
+  for(let s=1;s<SECTIONS;s++){
+    ctx.strokeStyle='#ddd';ctx.lineWidth=1;ctx.setLineDash([3,2]);
+    ctx.beginPath();ctx.moveTo(PAD+s*secL*sL,baseY-deckPx);ctx.lineTo(PAD+s*secL*sL,baseY);ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  for(let sec=0;sec<SECTIONS;sec++){
+    const gX=PAD+sec*secL*sL;
+    let colH=deckH;
+    for(let lv=0;lv<LEVELS;lv++){
+      const s=grid[sec][lv][side];if(!s)continue;
+      const bH=s.h*sH,bW=secL*sL-2;
+      const bY=baseY-deckPx-colH*sH-bH;
+      ctx.fillStyle=COLORS[s.size]+'cc';ctx.fillRect(gX+1,bY,bW,bH-1);
+      ctx.strokeStyle=COLORS[s.size];ctx.lineWidth=0.5;ctx.strokeRect(gX+1,bY,bW,bH-1);
+      colH+=s.h;
     }
   }
 
-  ctx.fillStyle='#666';ctx.font='10px sans-serif';ctx.textAlign='center';
-  ctx.fillText('48ft',PAD+trailerLpx/2,baseY+12);ctx.textAlign='left';
+  ctx.fillStyle=sideColor;ctx.font='10px sans-serif';ctx.textAlign='center';
+  ctx.fillText(sideLabel,PAD+trailerLpx/2,baseY-deckPx-4);
+  ctx.fillStyle='#666';ctx.fillText(Math.round(t.l/12)+"ft",PAD+trailerLpx/2,baseY+12);ctx.textAlign='left';
 }
 
-// 3D VIEW
-let rotX=0.3,rotY=-0.6,dragging=false,lastX=0,lastY=0;
+function drawSide(){ drawSideView('cv-side', 0, '#185FA5', ''); }
+function drawRight(){ drawSideView('cv-right', 0, '#185FA5', 'RIGHT SIDE'); }
+function drawLeft(){ drawSideView('cv-left', 1, '#0F6E56', 'LEFT SIDE'); }
+
+// 3D
 const cv360=document.getElementById('cv-360');
-cv360.addEventListener('mousedown',e=>{dragging=true;lastX=e.clientX;lastY=e.clientY;});
-window.addEventListener('mouseup',()=>dragging=false);
+cv360.addEventListener('mousedown',e=>{dragging=true;lastX=e.clientX;lastY=e.clientY;cv360.style.cursor='grabbing';});
+cv360.addEventListener('touchstart',e=>{dragging=true;lastX=e.touches[0].clientX;lastY=e.touches[0].clientY;},{passive:true});
+window.addEventListener('mouseup',()=>{dragging=false;cv360.style.cursor='grab';});
+window.addEventListener('touchend',()=>dragging=false);
 window.addEventListener('mousemove',e=>{
   if(!dragging)return;
-  rotY+=(e.clientX-lastX)*0.01;rotX+=(e.clientY-lastY)*0.01;
+  rotY+=(e.clientX-lastX)*0.012;rotX+=(e.clientY-lastY)*0.012;
   lastX=e.clientX;lastY=e.clientY;draw360();
 });
+window.addEventListener('touchmove',e=>{
+  if(!dragging)return;
+  rotY+=(e.touches[0].clientX-lastX)*0.012;rotX+=(e.touches[0].clientY-lastY)*0.012;
+  lastX=e.touches[0].clientX;lastY=e.touches[0].clientY;draw360();
+},{passive:true});
+cv360.addEventListener('wheel',e=>{
+  e.preventDefault();
+  scale3d=Math.max(0.1,Math.min(1.8,scale3d-e.deltaY*0.0005));
+  draw360();
+},{passive:false});
 
-function project(x,y,z,cx,cy,scale){
+function project3d(x,y,z){
+  const cv=document.getElementById('cv-360');
+  const cx=cv.width/2,cy=cv.height/2;
   const cosY=Math.cos(rotY),sinY=Math.sin(rotY),cosX=Math.cos(rotX),sinX=Math.sin(rotX);
   const x2=x*cosY-z*sinY,z2=x*sinY+z*cosY,y2=y*cosX-z2*sinX,z3=y*sinX+z2*cosX;
-  const d=600/(600+z3+200);
-  return{px:cx+x2*d*scale,py:cy+y2*d*scale,d:z3};
+  const d=700/(700+z3+300);
+  return{px:cx+x2*d*scale3d,py:cy+y2*d*scale3d,d:z3};
+}
+
+function drawBox3d(ctx,x1,y1,z1,x2,y2,z2,col,alpha){
+  const corners=[[x1,y1,z1],[x2,y1,z1],[x2,y2,z1],[x1,y2,z1],[x1,y1,z2],[x2,y1,z2],[x2,y2,z2],[x1,y2,z2]].map(([x,y,z])=>project3d(x,y,z));
+  [[0,1,2,3],[4,5,6,7],[0,1,5,4],[2,3,7,6],[0,3,7,4],[1,2,6,5]]
+    .map(idx=>({idx,d:idx.reduce((s,i)=>s+corners[i].d,0)/4}))
+    .sort((a,b)=>b.d-a.d)
+    .forEach(({idx})=>{
+      ctx.beginPath();idx.forEach((i,j)=>{j?ctx.lineTo(corners[i].px,corners[i].py):ctx.moveTo(corners[i].px,corners[i].py);});
+      ctx.closePath();ctx.fillStyle=col+(alpha||'cc');ctx.fill();
+      ctx.strokeStyle=col+'55';ctx.lineWidth=0.5;ctx.stroke();
+    });
 }
 
 function draw360(){
-  cv360.width=cv360.parentElement.clientWidth-24;
-  const ctx=cv360.getContext('2d');
-  const W=cv360.width,H=cv360.height;
-  ctx.clearRect(0,0,W,H);
-  const cx=W/2,cy=H/2+20,scale=0.38;
-  const TLh=TL/2,TWh=TW/2;
+  if(!currentTrailer)return;
+  const cv=document.getElementById('cv-360');
+  cv.width=cv.parentElement.clientWidth-24;
+  const ctx=cv.getContext('2d');
+  ctx.clearRect(0,0,cv.width,cv.height);
+  const t=currentTrailer;
+  const deckH=t.type==='stepdeck'?t.deckLow:t.deck;
+  const TLh=t.l/2,TWh=t.w/2;
+  const secL=t.l/SECTIONS;
 
-  function box(x1,y1,z1,x2,y2,z2,col,alpha){
-    const corners=[[x1,y1,z1],[x2,y1,z1],[x2,y2,z1],[x1,y2,z1],[x1,y1,z2],[x2,y1,z2],[x2,y2,z2],[x1,y2,z2]].map(([x,y,z])=>project(x,y,z,cx,cy,scale));
-    [[0,1,2,3],[4,5,6,7],[0,1,5,4],[2,3,7,6],[0,3,7,4],[1,2,6,5]].map(f=>({f,d:f.reduce((s,i)=>s+corners[i].d,0)/4})).sort((a,b)=>b.d-a.d).forEach(({f})=>{
-      ctx.beginPath();f.forEach((i,j)=>{const p=corners[i];j?ctx.lineTo(p.px,p.py):ctx.moveTo(p.px,p.py);});
-      ctx.closePath();ctx.fillStyle=col+(alpha||'99');ctx.fill();ctx.strokeStyle=col;ctx.lineWidth=0.5;ctx.stroke();
-    });
-  }
+  // Deck
+  drawBox3d(ctx,-TLh,-deckH,-TWh,TLh,0,TWh,'#888888','99');
 
-  box(-TLh,-DECK-2,-TWh,TLh,-DECK,TWh,'#888888','88');
-
-  const colW=TW/COLS;
-  const rowL=TL/ROWS;
+  // Bundles
   const faces=[];
-
-  for(let r=0;r<ROWS;r++){
-    for(let c=0;c<COLS;c++){
-      const s=grid[r][c]; if(!s) continue;
-      const x1=-TLh+r*rowL, x2=x1+s.l-2;
-      const z1=-TWh+c*colW, z2=z1+s.w;
-      // Stack position based on how many bundles are in this column above this row
-      let stackPos=0;
-      for(let rr=0;rr<r;rr++) if(grid[rr][c]) stackPos++;
-      const y1=-DECK-(stackPos+1)*s.h, y2=-DECK-stackPos*s.h;
-      const avg=project((x1+x2)/2,(y1+y2)/2,(z1+z2)/2,cx,cy,scale);
-      faces.push({x1,y1,z1,x2,y2,z2,col:COLORS[s.size],d:avg.d});
+  for(let sec=0;sec<SECTIONS;sec++){
+    const x1=-TLh+sec*secL, x2=x1+secL-3;
+    for(let side=0;side<2;side++){
+      let colH=deckH;
+      for(let lv=0;lv<LEVELS;lv++){
+        const s=grid[sec][lv][side];if(!s)continue;
+        const z1=side===0?0:-TWh, z2=side===0?TWh:0;
+        const y1=-(colH+s.h), y2=-colH;
+        const avg=project3d((x1+x2)/2,(y1+y2)/2,(z1+z2)/2);
+        faces.push({x1,y1,z1,x2,y2,z2,col:COLORS[s.size],d:avg.d});
+        colH+=s.h;
+      }
     }
   }
-  faces.sort((a,b)=>b.d-a.d).forEach(f=>box(f.x1,f.y1,f.z1,f.x2,f.y2,f.z2,f.col,'ee'));
+  faces.sort((a,b)=>b.d-a.d).forEach(f=>drawBox3d(ctx,f.x1,f.y1,f.z1,f.x2,f.y2,f.z2,f.col,'ee'));
 
+  // FRONT label
+  const fp=project3d(-TLh+secL/2,-deckH-10,0);
   ctx.fillStyle='#555';ctx.font='12px sans-serif';ctx.textAlign='center';
-  const fp=project(-TLh+rowL/2,-DECK-5,0,cx,cy,scale);
   ctx.fillText('FRONT',fp.px,fp.py);ctx.textAlign='left';
 }
 
-window.addEventListener('resize',()=>{drawFront();drawSide();draw360();});
-update();
+window.addEventListener('resize',()=>{if(currentTrailer)update();});
+buildSelector();
 </script>
 </body>
 </html>
