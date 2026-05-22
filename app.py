@@ -425,8 +425,7 @@ elif pagina == "Truck Builder":
     bw, bh, bl = b["w"], b["h"], b["l"]
 
     bundles_wide = max(1, TRAILER_W // bw)
-    avail_h = LEGAL_H
-    bundles_high = max(1, avail_h // bh)
+    bundles_high = max(1, LEGAL_H // bh)
     bundles_per_group = bundles_wide * bundles_high
     num_groups = -(-qty // bundles_per_group)
     total_length = num_groups * bl
@@ -465,32 +464,32 @@ elif pagina == "Truck Builder":
     fig = go.Figure()
 
     # Trailer deck
-    fig.add_trace(make_box(0, TRAILER_L, -TRAILER_W/2, TRAILER_W/2, 0, DECK_H, "#888888", 0.5))
+    fig.add_trace(make_box(0, TRAILER_L, -TRAILER_W/2, TRAILER_W/2, 0, DECK_H, "#888888", 0.4))
 
-    # Draw bundles as solid blocks per group
+    # Draw each bundle individually
     bundles_left = qty
     for g in range(num_groups):
         if bundles_left <= 0:
             break
         x0 = g * bl
-        x1 = x0 + bl - 2
-        bundles_this_group = min(bundles_per_group, bundles_left)
-        rows_this_group = -(-bundles_this_group // bundles_wide)
-        for row in range(rows_this_group):
-            bundles_in_row = min(bundles_wide, bundles_this_group - row * bundles_wide)
-            if bundles_in_row <= 0:
+        x1 = x0 + bl - 1
+        for row in range(bundles_high):
+            if bundles_left <= 0:
                 break
-            y0 = -TRAILER_W/2
-            y1 = y0 + bundles_in_row * bw
             z0 = DECK_H + row * bh
-            z1 = z0 + bh
-            fig.add_trace(make_box(x0, x1, y0, y1, z0, z1, "#185FA5"))
-        bundles_left -= bundles_this_group
+            z1 = z0 + bh - 1
+            for col_i in range(bundles_wide):
+                if bundles_left <= 0:
+                    break
+                y0 = -TRAILER_W/2 + col_i * bw
+                y1 = y0 + bw - 1
+                fig.add_trace(make_box(x0, x1, y0, y1, z0, z1, "#185FA5", 0.9))
+                bundles_left -= 1
 
-    # Legal height line
+    # Legal height red line
     fig.add_trace(go.Scatter3d(
         x=[0, TRAILER_L], y=[0, 0], z=[LEGAL_H+DECK_H, LEGAL_H+DECK_H],
-        mode="lines", line=dict(color="red", width=3), name="13'6\" limit"
+        mode="lines", line=dict(color="red", width=4), name="13'6\""
     ))
 
     fig.update_layout(
