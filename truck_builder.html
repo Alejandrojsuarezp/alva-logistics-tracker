@@ -564,33 +564,34 @@ function draw360(){
   const secL=t.l/SECTIONS;
 
   // Deck
+  const UPPER_L=132, STEP_W=10;
   if(t.type==='stepdeck'){
-    const upperL = 132; // 11ft upper deck at front
-    const upperH = t.deckHigh;
-    const lowerH = t.deckLow;
-    // Upper deck (front)
-    drawBox3d(ctx,-TLh,-upperH,-TWh,-TLh+upperL,0,TWh,'#777777','99');
-    // Step transition
-    drawBox3d(ctx,-TLh+upperL,-upperH,-TWh,-TLh+upperL+10,-lowerH,TWh,'#666666','99');
-    // Lower deck (back)
-    drawBox3d(ctx,-TLh+upperL+10,-lowerH,-TWh,TLh,0,TWh,'#888888','99');
+    const upperH=t.deckHigh, lowerH=t.deckLow;
+    drawBox3d(ctx,-TLh,-upperH,-TWh,-TLh+UPPER_L,0,TWh,'#777777','99');
+    drawBox3d(ctx,-TLh+UPPER_L,-upperH,-TWh,-TLh+UPPER_L+STEP_W,-lowerH,TWh,'#555555','99');
+    drawBox3d(ctx,-TLh+UPPER_L+STEP_W,-lowerH,-TWh,TLh,0,TWh,'#888888','99');
   } else {
     drawBox3d(ctx,-TLh,-deckH,-TWh,TLh,0,TWh,'#888888','99');
   }
 
-  // Bundles — with gaps between sections and between stacks
+  // Bundles — correct deck height per section
   const faces=[];
   const GAP=4;
   for(let sec=0;sec<SECTIONS;sec++){
     const x1=-TLh+sec*secL+GAP/2, x2=-TLh+(sec+1)*secL-GAP/2;
+    // Determine which deck this section is on (for stepdeck)
+    const secMidX=-TLh+sec*secL+secL/2;
+    let secDeckH=deckH;
+    if(t.type==='stepdeck'){
+      secDeckH = secMidX < (-TLh+UPPER_L) ? t.deckHigh : t.deckLow;
+    }
     for(let side=0;side<2;side++){
       let stackH=0;
       for(let lv=0;lv<LEVELS;lv++){
         const s=grid[sec][lv][side];if(!s)continue;
-        // side 0=RIGHT (positive Z), side 1=LEFT (negative Z)
         const z1=side===0?GAP/2:-TWh+GAP/2;
         const z2=side===0?TWh-GAP/2:-GAP/2;
-        const y1=-(deckH+stackH+s.h)+GAP/2, y2=-(deckH+stackH)-GAP/2;
+        const y1=-(secDeckH+stackH+s.h)+GAP/2, y2=-(secDeckH+stackH)-GAP/2;
         const avg=project3d((x1+x2)/2,(y1+y2)/2,(z1+z2)/2);
         faces.push({x1,y1,z1,x2,y2,z2,col:COLORS[s.size],d:avg.d});
         stackH+=s.h;
