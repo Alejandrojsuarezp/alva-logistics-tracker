@@ -437,6 +437,14 @@ function drawFront(){
   ctx.beginPath();ctx.moveTo(offsetX-4,limY);ctx.lineTo(offsetX+trailerWpx+4,limY);ctx.stroke();
   ctx.setLineDash([]);
   ctx.fillStyle='#E24B4A';ctx.font='9px sans-serif';ctx.fillText("13'6\"",offsetX+trailerWpx+5,limY+4);
+  // 10'6" cargo line
+  const GROUND_TO_DECK_F=36;
+  const cargoHF=t.legal-GROUND_TO_DECK_F;
+  const cargoYF=baseY-deckPx-cargoHF*sH;
+  ctx.strokeStyle='#BA7517';ctx.lineWidth=1.5;ctx.setLineDash([4,3]);
+  ctx.beginPath();ctx.moveTo(offsetX-4,cargoYF);ctx.lineTo(offsetX+trailerWpx+4,cargoYF);ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle='#BA7517';ctx.font='9px sans-serif';ctx.fillText("10'6\"",offsetX+trailerWpx+5,cargoYF+4);
 
   const cx=offsetX+trailerWpx/2;
   for(let side=0;side<2;side++){
@@ -480,16 +488,16 @@ function drawSideView(cvId,side,sideColor,sideLabel){
   ctx.beginPath();ctx.moveTo(PAD-4,limY);ctx.lineTo(PAD+trailerLpx+4,limY);ctx.stroke();ctx.setLineDash([]);
   ctx.fillStyle='#E24B4A';ctx.font='9px sans-serif';ctx.fillText("13'6\"",PAD+trailerLpx+5,limY+4);
 
-  // 10'6" real cargo limit (orange) — only on Side View
-  if(cvId==='cv-side'){
-    const GROUND_TO_DECK=36;
-    const realCargoH=t.legal-GROUND_TO_DECK;
-    const cargoY=baseY-deckPx-realCargoH*sH;
-    ctx.strokeStyle='#BA7517';ctx.lineWidth=1.5;ctx.setLineDash([4,3]);
-    ctx.beginPath();ctx.moveTo(PAD-4,cargoY);ctx.lineTo(PAD+trailerLpx+4,cargoY);ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.fillStyle='#BA7517';ctx.font='9px sans-serif';ctx.fillText("10'6\" cargo",PAD+trailerLpx+5,cargoY+4);
-  }
+  // 10'6" cargo line on all side views
+  const GROUND_TO_DECK_S=36;
+  const realCargoHS=t.legal-GROUND_TO_DECK_S;
+  const cargoYS=baseY-deckPx-realCargoHS*sH;
+  ctx.strokeStyle='#BA7517';ctx.lineWidth=1.5;ctx.setLineDash([4,3]);
+  ctx.beginPath();ctx.moveTo(PAD-4,cargoYS);ctx.lineTo(PAD+trailerLpx+4,cargoYS);ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle='#BA7517';ctx.font='9px sans-serif';
+  if(cvId==='cv-side') ctx.fillText("10'6\" cargo",PAD+trailerLpx+5,cargoYS+4);
+  else ctx.fillText("10'6\"",PAD+trailerLpx+5,cargoYS+4);
 
   // Section dividers
   for(let s=1;s<SECTIONS;s++){
@@ -610,6 +618,23 @@ function draw360(){
     }
   }
   faces.sort((a,b)=>b.d-a.d).forEach(f=>drawBox3d(ctx,f.x1,f.y1,f.z1,f.x2,f.y2,f.z2,f.col,'ee'));
+
+  // Legal limit planes in 3D
+  const GROUND_TO_DECK_3D=36;
+  const cargoH3D=t.legal-GROUND_TO_DECK_3D;
+  // 13'6" line
+  [[t.legal],[cargoH3D]].forEach((hArr,idx)=>{
+    const h=hArr[0];
+    const col=idx===0?'#E24B4A':'#BA7517';
+    const label=idx===0?"13'6\"":"10'6\"";
+    const p1=project3d(-TLh,-(deckH+h),-TWh-5);
+    const p2=project3d(TLh,-(deckH+h),-TWh-5);
+    ctx.strokeStyle=col;ctx.lineWidth=1.5;ctx.setLineDash([5,4]);
+    ctx.beginPath();ctx.moveTo(p1.px,p1.py);ctx.lineTo(p2.px,p2.py);ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle=col;ctx.font='10px sans-serif';ctx.textAlign='left';
+    ctx.fillText(label,p2.px+4,p2.py);
+  });
 
   // FRONT label
   const fp=project3d(-TLh+secL/2,-deckH-10,0);
