@@ -443,28 +443,18 @@ function drawFront(){
   ctx.fillStyle='#E24B4A';ctx.font='9px sans-serif';ctx.fillText("13'6\"",offsetX+trailerWpx+5,limY+4);
 
   const cx=offsetX+trailerWpx/2;
-  // Right side bundles (left of center)
-  for(let sec=0;sec<SECTIONS;sec++){
-    let colH=deckH;
+  for(let side=0;side<2;side++){
+    let stackH=0;
     for(let lv=0;lv<LEVELS;lv++){
-      const s=grid[sec][lv][0];if(!s)continue;
+      let s=null;
+      for(let sec=0;sec<SECTIONS;sec++){ if(grid[sec][lv][side]){s=grid[sec][lv][side];break;} }
+      if(!s)continue;
       const bW=s.w*sW, bH=s.h*sH;
-      const bX=cx-bW, bY=baseY-deckPx-colH*sH-bH;
+      const bX=side===0?cx-bW:cx;
+      const bY=baseY-deckPx-stackH*sH-bH;
       ctx.fillStyle=COLORS[s.size]+'cc';ctx.fillRect(bX,bY,bW,bH-1);
       ctx.strokeStyle=COLORS[s.size];ctx.lineWidth=0.5;ctx.strokeRect(bX,bY,bW,bH-1);
-      colH+=s.h; break;
-    }
-  }
-  // Left side bundles (right of center)
-  for(let sec=0;sec<SECTIONS;sec++){
-    let colH=deckH;
-    for(let lv=0;lv<LEVELS;lv++){
-      const s=grid[sec][lv][1];if(!s)continue;
-      const bW=s.w*sW, bH=s.h*sH;
-      const bX=cx, bY=baseY-deckPx-colH*sH-bH;
-      ctx.fillStyle=COLORS[s.size]+'cc';ctx.fillRect(bX,bY,bW,bH-1);
-      ctx.strokeStyle=COLORS[s.size];ctx.lineWidth=0.5;ctx.strokeRect(bX,bY,bW,bH-1);
-      colH+=s.h; break;
+      stackH+=s.h;
     }
   }
   // Center line
