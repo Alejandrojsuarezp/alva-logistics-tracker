@@ -266,7 +266,6 @@ elif pagina == "Loads":
         st.info("No loads registered.")
 
 # ── PRICING ────────────────────────────────
-# ── PRICING ────────────────────────────────
 elif pagina == "Pricing":
     st.title("Pricing")
     st.markdown("---")
@@ -319,6 +318,7 @@ elif pagina == "Pricing":
         st.markdown(html_p, unsafe_allow_html=True)
     else:
         st.info("No quotes found with that filter.")
+
 # ── UPDATES LOG ───────────────────────────
 elif pagina == "Updates Log":
     st.title("Updates Log")
@@ -339,11 +339,11 @@ elif pagina == "Updates Log":
         </style>
         <table class="updates-table">
         <thead><tr>
-            <th>Date/Time</th><th>Shipment</th><th>Linked Load</th><th>Type</th><th>Description</th><th>Responsible</th><th>⚠ Flag</th>
+            <th>Date/Time</th><th>Shipment</th><th>Linked Load</th><th>Type</th><th>Description</th><th>Responsible</th><th>Flag</th>
         </tr></thead><tbody>"""
         for u in updates:
             flag = u.get('attention_flag', '')
-            flag_html = '<span class="flag-yes">⚠ Yes</span>' if flag else '<span class="flag-no">—</span>'
+            flag_html = '<span class="flag-yes">Yes</span>' if flag else '<span class="flag-no">-</span>'
             html_u += f"""<tr>
                 <td>{u.get('datetime','')}</td>
                 <td>{u.get('shipment','')}</td>
@@ -358,7 +358,6 @@ elif pagina == "Updates Log":
         st.caption(f"Total: {len(updates)} updates")
     else:
         st.info("No updates logged yet.")
-# ── CONSOLIDATIONS ────────────────────────
 
 # ── CONSOLIDATIONS ────────────────────────
 elif pagina == "Consolidations":
@@ -380,36 +379,37 @@ elif pagina == "Consolidations":
                     col1.metric("Distance", f"{op['distancia_millas']} miles")
                     col2.metric("Combined weight", f"{op['peso_combinado']:,} lbs")
                     col3.metric("Available space", f"{op['espacio_disponible']:,} lbs")
-                    st.markdown(f"**Shipment 1:** {op['shipment_1']} → {op['destino_1']} ({op['peso_1']:,} lbs)")
-                    st.markdown(f"**Shipment 2:** {op['shipment_2']} → {op['destino_2']} ({op['peso_2']:,} lbs)")
+                    st.markdown(f"**Shipment 1:** {op['shipment_1']} -> {op['destino_1']} ({op['peso_1']:,} lbs)")
+                    st.markdown(f"**Shipment 2:** {op['shipment_2']} -> {op['destino_2']} ({op['peso_2']:,} lbs)")
                     st.markdown(f"**Suggested trailer:** {op['trailer_sugerido']}")
         else:
             st.warning("No consolidation opportunities detected with current active shipments.")
+
 # ── TRUCK BUILDER ─────────────────────────
 elif pagina == "Truck Builder":
-    st.title("🚛 Truck Builder")
+    st.title("Truck Builder")
     st.markdown("---")
 
     BUNDLES = {
-        "1/2\"":  {"10": {"w":30,"h":16,"l":127}, "20": None},
-        "3/4\"":  {"10": {"w":38,"h":15,"l":126}, "20": None},
-        "1\"":    {"10": {"w":36,"h":19,"l":127}, "20": {"w":36,"h":19,"l":254}},
-        "1-1/4\"":{"10": {"w":42,"h":24,"l":134}, "20": {"w":42,"h":24,"l":268}},
-        "1-1/2\"":{"10": {"w":43,"h":22,"l":131}, "20": {"w":43,"h":22,"l":262}},
-        "2\"":    {"10": {"w":37,"h":22,"l":135}, "20": {"w":37,"h":22,"l":271}},
-        "2-1/2\"":{"10": {"w":43,"h":20,"l":135}, "20": {"w":43,"h":20,"l":270}},
-        "3\"":    {"10": {"w":42,"h":27,"l":138}, "20": {"w":42,"h":27,"l":276}},
-        "3-1/2\"":{"10": {"w":41,"h":28,"l":135}, "20": {"w":41,"h":28,"l":270}},
-        "4\"":    {"10": {"w":45,"h":28,"l":138}, "20": {"w":45,"h":28,"l":277}},
-        "5\"":    {"10": {"w":42,"h":32,"l":141}, "20": {"w":42,"h":32,"l":283}},
-        "6\"":    {"10": {"w":42,"h":32,"l":141}, "20": {"w":42,"h":32,"l":282}},
-        "8\"":    {"10": {"w":40,"h":31,"l":135}, "20": {"w":40,"h":31,"l":270}},
+        "1/2": {"10": {"w":30,"h":16,"l":127}, "20": None},
+        "3/4": {"10": {"w":38,"h":15,"l":126}, "20": None},
+        "1":   {"10": {"w":36,"h":19,"l":127}, "20": {"w":36,"h":19,"l":254}},
+        "1-1/4": {"10": {"w":42,"h":24,"l":134}, "20": {"w":42,"h":24,"l":268}},
+        "1-1/2": {"10": {"w":43,"h":22,"l":131}, "20": {"w":43,"h":22,"l":262}},
+        "2":   {"10": {"w":37,"h":22,"l":135}, "20": {"w":37,"h":22,"l":271}},
+        "2-1/2": {"10": {"w":43,"h":20,"l":135}, "20": {"w":43,"h":20,"l":270}},
+        "3":   {"10": {"w":42,"h":27,"l":138}, "20": {"w":42,"h":27,"l":276}},
+        "3-1/2": {"10": {"w":41,"h":28,"l":135}, "20": {"w":41,"h":28,"l":270}},
+        "4":   {"10": {"w":45,"h":28,"l":138}, "20": {"w":45,"h":28,"l":277}},
+        "5":   {"10": {"w":42,"h":32,"l":141}, "20": {"w":42,"h":32,"l":283}},
+        "6":   {"10": {"w":42,"h":32,"l":141}, "20": {"w":42,"h":32,"l":282}},
+        "8":   {"10": {"w":40,"h":31,"l":135}, "20": {"w":40,"h":31,"l":270}},
     }
 
     COLORS = {
-        "1/2\"":"#7F77DD","3/4\"":"#534AB7","1\"":"#1D9E75","1-1/4\"":"#0F6E56",
-        "1-1/2\"":"#D85A30","2\"":"#993C1D","2-1/2\"":"#D4537E","3\"":"#993556",
-        "3-1/2\"":"#378ADD","4\"":"#185FA5","5\"":"#BA7517","6\"":"#854F0B","8\"":"#639922"
+        "1/2":"#7F77DD","3/4":"#534AB7","1":"#1D9E75","1-1/4":"#0F6E56",
+        "1-1/2":"#D85A30","2":"#993C1D","2-1/2":"#D4537E","3":"#993556",
+        "3-1/2":"#378ADD","4":"#185FA5","5":"#BA7517","6":"#854F0B","8":"#639922"
     }
 
     ROWS, COLS = 4, 6
@@ -417,122 +417,87 @@ elif pagina == "Truck Builder":
 
     if "tb_grid" not in st.session_state:
         st.session_state.tb_grid = [[None]*COLS for _ in range(ROWS)]
-    if "tb_selected" not in st.session_state:
-        st.session_state.tb_selected = None
+    if "tb_sel" not in st.session_state:
+        st.session_state.tb_sel = None
 
-    # Controls
-    col1, col2, col3, col4 = st.columns([2,2,1,1])
+    col1, col2, col3 = st.columns([2, 2, 1])
     with col1:
-        size_sel = st.selectbox("Pipe size", list(BUNDLES.keys()))
+        size_sel = st.selectbox("Pipe size", [s + '"' for s in BUNDLES.keys()])
+        size_key = size_sel.replace('"', '')
     with col2:
-        available = [k for k,v in BUNDLES[size_sel].items() if v is not None]
-        len_sel = st.selectbox("Length", available, format_func=lambda x: f"{x} ft")
+        available = [k for k, v in BUNDLES[size_key].items() if v is not None]
+        len_sel = st.selectbox("Length", available, format_func=lambda x: x + " ft")
     with col3:
         st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("🗑 Clear", type="secondary"):
+        if st.button("Clear all"):
             st.session_state.tb_grid = [[None]*COLS for _ in range(ROWS)]
-            st.session_state.tb_selected = None
+            st.session_state.tb_sel = None
             st.rerun()
-    with col4:
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown(f"**Selected:** {size_sel} {len_sel}ft")
 
-    b_data = BUNDLES[size_sel][len_sel]
+    b_data = BUNDLES[size_key][len_sel]
     grid = st.session_state.tb_grid
-    selected = st.session_state.tb_selected
+    sel = st.session_state.tb_sel
+
+    if sel:
+        st.info(f"Bundle selected: {grid[sel[0]][sel[1]]['size']}\" {grid[sel[0]][sel[1]]['len']}ft — click another cell to move it")
+    else:
+        st.caption("Click empty cell to place bundle. Click filled cell to select it, then click another cell to move it.")
 
     st.markdown("---")
 
-    # Build the grid using Streamlit columns
-    # Header
-    header = st.columns([0.5] + [1]*6 + [0.5])
-    header[1].markdown("<div style='text-align:center;font-size:11px;color:#666;font-weight:600;'>FRONT</div>", unsafe_allow_html=True)
-    header[4].markdown("<div style='text-align:center;font-size:11px;color:#666;font-weight:600;'>FRONT</div>", unsafe_allow_html=True)
+    # FRONT labels
+    hcols = st.columns([0.4] + [1]*6 + [0.4])
+    hcols[1].markdown("<center><b style='font-size:12px;color:#666'>FRONT</b></center>", unsafe_allow_html=True)
+    hcols[4].markdown("<center><b style='font-size:12px;color:#666'>FRONT</b></center>", unsafe_allow_html=True)
 
     changed = False
-
     for r in range(ROWS):
-        row_ui = st.columns([0.5] + [1]*6 + [0.5])
-
-        # Left label
+        rcols = st.columns([0.4] + [1]*6 + [0.4])
         if r == 1:
-            row_ui[0].markdown("<div style='font-size:11px;color:#666;font-weight:600;text-align:center;margin-top:30px;'>LEFT<br>SIDE</div>", unsafe_allow_html=True)
-            row_ui[7].markdown("<div style='font-size:11px;color:#666;font-weight:600;text-align:center;margin-top:30px;'>RIGHT<br>SIDE</div>", unsafe_allow_html=True)
+            rcols[0].markdown("<div style='font-size:11px;color:#666;font-weight:600;text-align:center;padding-top:20px'>LEFT<br>SIDE</div>", unsafe_allow_html=True)
+            rcols[7].markdown("<div style='font-size:11px;color:#666;font-weight:600;text-align:center;padding-top:20px'>RIGHT<br>SIDE</div>", unsafe_allow_html=True)
 
         for c in range(COLS):
             cell = grid[r][c]
-            is_sel = selected == (r, c)
-            center_border = "border-right:3px solid #222 !important;" if c == 2 else ""
+            is_sel = sel == (r, c)
+            col = rcols[c + 1]
 
             if cell:
-                color = COLORS.get(cell['size'], '#378ADD')
-                size_display = cell['size'].replace('"', '"')
+                clr = COLORS.get(cell['size'], '#378ADD')
                 if is_sel:
-                    bg = color
-                    text_color = "white"
-                    border = f"3px solid #FFD700"
+                    style = "background-color:" + clr + ";color:white;border:3px solid gold;border-radius:8px;padding:8px;text-align:center;font-weight:700;font-size:15px;margin:2px;cursor:pointer"
                 else:
-                    bg = color + "25"
-                    text_color = color
-                    border = f"2px solid {color}"
-                content = f"<div style='font-size:16px;font-weight:700;'>{size_display}</div><div style='font-size:11px;'>{cell['len']}ft</div>"
+                    style = "background-color:" + clr + "22;color:" + clr + ";border:2px solid " + clr + ";border-radius:8px;padding:8px;text-align:center;font-weight:700;font-size:15px;margin:2px;cursor:pointer"
+                if c == 2:
+                    style += ";border-right:4px solid #222"
+                col.markdown("<div style='" + style + "'>" + cell['size'] + '"<br><span style=font-size:11px>' + str(cell['len']) + "ft</span></div>", unsafe_allow_html=True)
             else:
-                bg = "#f8f8f8"
-                text_color = "#ccc"
-                border = "2px dashed #ddd"
-                content = "<div style='font-size:20px;'>·</div>"
                 if is_sel:
-                    bg = "#E1F5EE"
-                    border = "2px dashed #1D9E75"
-
-cell_html = (
-                f"<div style='"
-                f"background:{bg};"
-                f"border:{border};"
-                f"border-radius:8px;"
-                f"height:80px;"
-                f"display:flex;"
-                f"flex-direction:column;"
-                f"align-items:center;"
-                f"justify-content:center;"
-                f"color:{text_color};"
-                f"margin:3px;"
-                f"cursor:pointer;"
-                f"'>{content}</div>"
-            )
-                background:{bg};
-                border:{border};
-                {center_border}
-                border-radius:8px;
-                height:80px;
-                display:flex;
-                flex-direction:column;
-                align-items:center;
-                justify-content:center;
-                color:{text_color};
-                margin:3px;
-                cursor:pointer;
-            '>{content}</div>"""
-
-            row_ui[c+1].markdown(cell_html, unsafe_allow_html=True)
-
-            if row_ui[c+1].button("", key=f"g_{r}_{c}", help=f"Row {r+1} Col {c+1}"):
-                if selected is None:
-                    if cell:
-                        st.session_state.tb_selected = (r, c)
-                    else:
-                        grid[r][c] = {"size": size_sel, "len": int(len_sel), "w": b_data["w"], "h": b_data["h"], "l": b_data["l"]}
+                    style = "background-color:#E1F5EE;border:2px dashed #1D9E75;border-radius:8px;padding:8px;text-align:center;color:#1D9E75;font-size:20px;margin:2px;cursor:pointer"
                 else:
-                    sr, sc = selected
-                    if (r, c) == selected:
-                        st.session_state.tb_selected = None
+                    style = "background-color:#fafafa;border:2px dashed #ddd;border-radius:8px;padding:8px;text-align:center;color:#ddd;font-size:20px;margin:2px;cursor:pointer"
+                if c == 2:
+                    style += ";border-right:4px solid #222"
+                col.markdown("<div style='" + style + "'>·</div>", unsafe_allow_html=True)
+
+            if col.button("select", key="g_" + str(r) + "_" + str(c), label_visibility="collapsed"):
+                if sel is None:
+                    if cell:
+                        st.session_state.tb_sel = (r, c)
+                    else:
+                        grid[r][c] = {"size": size_key, "len": int(len_sel), "w": b_data["w"], "h": b_data["h"], "l": b_data["l"]}
+                        st.session_state.tb_sel = None
+                else:
+                    sr, sc = sel
+                    if (r, c) == sel:
+                        st.session_state.tb_sel = None
                     elif cell is None:
                         grid[r][c] = grid[sr][sc]
                         grid[sr][sc] = None
-                        st.session_state.tb_selected = None
+                        st.session_state.tb_sel = None
                     else:
                         grid[r][c], grid[sr][sc] = grid[sr][sc], grid[r][c]
-                        st.session_state.tb_selected = None
+                        st.session_state.tb_sel = None
                 changed = True
 
     if changed:
@@ -540,64 +505,72 @@ cell_html = (
 
     st.markdown("---")
 
-    # Stats
     total = sum(1 for r in range(ROWS) for c in range(COLS) if grid[r][c])
-    col_heights = [DECK_H + sum(grid[r][c]["h"] for r in range(ROWS) if grid[r][c]) for c in range(COLS)]
+    col_heights = []
+    for c in range(COLS):
+        h = DECK_H
+        for r in range(ROWS):
+            if grid[r][c]:
+                h += grid[r][c]["h"]
+        col_heights.append(h)
     max_h = max(col_heights)
     ft = int(max_h // 12)
     inch = round(max_h % 12)
     left_w = sum(grid[r][c]["w"]*grid[r][c]["h"]*0.000284 for r in range(ROWS) for c in range(3) if grid[r][c])
     right_w = sum(grid[r][c]["w"]*grid[r][c]["h"]*0.000284 for r in range(ROWS) for c in range(3,6) if grid[r][c])
 
-    m1,m2,m3,m4,m5 = st.columns(5)
+    m1, m2, m3, m4, m5 = st.columns(5)
     m1.metric("Total bundles", total)
-    m2.metric("Slots used", f"{total} / {ROWS*COLS}")
-    m3.metric("Max height", f"{ft}'{inch}\"")
-    m4.metric("Left", f"{int(left_w)} lbs")
-    m5.metric("Right", f"{int(right_w)} lbs")
+    m2.metric("Slots used", str(total) + " / " + str(ROWS*COLS))
+    m3.metric("Max height", str(ft) + "'" + str(inch) + '"')
+    m4.metric("Left weight", str(int(left_w)) + " lbs")
+    m5.metric("Right weight", str(int(right_w)) + " lbs")
 
     if max_h > LEGAL_H + DECK_H:
-        st.error(f"⚠ Height exceeded — {ft}'{inch}\" supera 13'6\"")
+        st.error("Height exceeded — " + str(ft) + "'" + str(inch) + '" supera 13\'6"')
     elif total > 0:
-        st.success(f"✅ Load OK — {ft}'{inch}\" altura")
+        st.success("Load OK — " + str(ft) + "'" + str(inch) + '" altura, ' + str(ROWS*COLS - total) + " slots disponibles")
 
-    # 3D
     st.markdown("---")
     import plotly.graph_objects as go
 
-    def make_box(x0,x1,y0,y1,z0,z1,color):
-        vx=[x0,x1,x1,x0,x0,x1,x1,x0]
-        vy=[y0,y0,y1,y1,y0,y0,y1,y1]
-        vz=[z0,z0,z0,z0,z1,z1,z1,z1]
-        i=[0,0,0,1,1,2,4,4,4,5,5,6]
-        j=[1,2,4,2,5,3,5,6,0,6,1,7]
-        k=[2,3,5,5,6,7,6,7,7,7,2,3]
-        return go.Mesh3d(x=vx,y=vy,z=vz,i=i,j=j,k=k,color=color,opacity=0.85,flatshading=True)
+    def make_box(x0, x1, y0, y1, z0, z1, color):
+        vx = [x0,x1,x1,x0,x0,x1,x1,x0]
+        vy = [y0,y0,y1,y1,y0,y0,y1,y1]
+        vz = [z0,z0,z0,z0,z1,z1,z1,z1]
+        i = [0,0,0,1,1,2,4,4,4,5,5,6]
+        j = [1,2,4,2,5,3,5,6,0,6,1,7]
+        k = [2,3,5,5,6,7,6,7,7,7,2,3]
+        return go.Mesh3d(x=vx, y=vy, z=vz, i=i, j=j, k=k, color=color, opacity=0.85, flatshading=True)
 
     fig = go.Figure()
-    fig.add_trace(make_box(0,TRAILER_L,-TRAILER_W/2,TRAILER_W/2,0,DECK_H,"#aaaaaa"))
+    fig.add_trace(make_box(0, TRAILER_L, -TRAILER_W/2, TRAILER_W/2, 0, DECK_H, "#aaaaaa"))
 
-    row_l = TRAILER_L/ROWS
-    col_w = TRAILER_W/COLS
+    row_l = TRAILER_L / ROWS
+    col_w = TRAILER_W / COLS
 
     for r in range(ROWS):
         for c in range(COLS):
             s = grid[r][c]
-            if not s: continue
-            x0=r*row_l; x1=x0+row_l-2
-            y0=-TRAILER_W/2+c*col_w; y1=y0+col_w-2
-            color = COLORS.get(s["size"],"#378ADD")
-            fig.add_trace(make_box(x0,x1,y0,y1,DECK_H,DECK_H+s["h"],color))
+            if not s:
+                continue
+            x0 = r * row_l
+            x1 = x0 + row_l - 2
+            y0 = -TRAILER_W/2 + c * col_w
+            y1 = y0 + col_w - 2
+            clr = COLORS.get(s["size"], "#378ADD")
+            fig.add_trace(make_box(x0, x1, y0, y1, DECK_H, DECK_H + s["h"], clr))
 
     fig.update_layout(
         scene=dict(
-            xaxis=dict(title="Length",range=[0,TRAILER_L]),
-            yaxis=dict(title="Width",range=[-TRAILER_W/2,TRAILER_W/2]),
-            zaxis=dict(title="Height",range=[0,LEGAL_H+DECK_H]),
+            xaxis=dict(title="Length", range=[0, TRAILER_L]),
+            yaxis=dict(title="Width", range=[-TRAILER_W/2, TRAILER_W/2]),
+            zaxis=dict(title="Height", range=[0, LEGAL_H+DECK_H]),
             aspectmode="data",
-            camera=dict(eye=dict(x=1.5,y=1.5,z=1))
+            camera=dict(eye=dict(x=1.5, y=1.5, z=1))
         ),
-        margin=dict(l=0,r=0,t=0,b=0),
-        height=500,showlegend=False
+        margin=dict(l=0, r=0, t=0, b=0),
+        height=500,
+        showlegend=False
     )
     st.plotly_chart(fig, use_container_width=True)
