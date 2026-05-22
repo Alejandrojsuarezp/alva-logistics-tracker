@@ -480,7 +480,7 @@ elif pagina == "Truck Builder":
                     style += ";border-right:4px solid #222"
                 col.markdown("<div style='" + style + "'>·</div>", unsafe_allow_html=True)
 
-            if col.button("select", key="g_" + str(r) + "_" + str(c), label_visibility="collapsed"):
+            if col.button(".", key="g_" + str(r) + "_" + str(c)):
                 if sel is None:
                     if cell:
                         st.session_state.tb_sel = (r, c)
