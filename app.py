@@ -462,7 +462,7 @@ elif pagina == "Truck Builder":
             is_sel = sel == (r, c)
             col = rcols[c + 1]
 
-           if cell:
+            if cell:
                 clr = COLORS.get(cell['size'], '#378ADD')
                 if is_sel:
                     btn_label = "★ " + cell['size'] + '" ' + str(cell['len']) + "ft"
@@ -471,7 +471,7 @@ elif pagina == "Truck Builder":
             else:
                 btn_label = "·"
 
-            if col.button(btn_label, key="g_" + str(r) + "_" + str(c), use_container_width=True):
+             if col.button(btn_label, key="g_" + str(r) + "_" + str(c), use_container_width=True):
                 if sel is None:
                     if cell:
                         st.session_state.tb_sel = (r, c)
