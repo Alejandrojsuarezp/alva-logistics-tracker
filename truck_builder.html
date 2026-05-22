@@ -133,7 +133,7 @@ canvas{display:block;width:100%;}
         <span style="font-size:11px;color:#185FA5;font-weight:600;">← FRONT</span>
         <span style="font-size:11px;color:#999;">BACK →</span>
       </div>
-      <table class="tgrid" id="tgrid"></table>
+      <div id="tgrid-wrap"></div>
       <div class="grid-labels"><span>RIGHT SIDE</span><span>LEFT SIDE</span></div>
     </div>
 
@@ -265,80 +265,76 @@ function changeTrailer(){
 
 // BUILD GRID TABLE
 function buildTGrid(){
-  const tbl = document.getElementById('tgrid');
-  tbl.innerHTML = '';
-  const t = currentTrailer;
-  const isStep = t.type==='stepdeck';
+  const wrap = document.getElementById('tgrid-wrap');
+  wrap.innerHTML = '';
 
-  // Header row
-  const hrow = document.createElement('tr');
-  const hth = document.createElement('th');
-  hth.colSpan = SECTIONS*2;
-  hth.style = 'font-size:11px;color:#999;font-weight:400;padding:2px 0 4px;text-align:left;';
-  hth.textContent = isStep ? 'Level 1 = floor · Levels 2-4 = stacked up' : 'Level 1 = floor · Levels 2-4 = stacked up';
-  hrow.appendChild(hth);
-  tbl.appendChild(hrow);
+  // Section headers
+  const secHeader = '<div style="display:flex;margin-left:34px;margin-bottom:2px;">' +
+    Array.from({length:SECTIONS},(_,i)=>`<div style="flex:1;text-align:center;font-size:10px;color:#999;">S${i+1}</div>`).join('') +
+    '</div>';
 
+  // RIGHT SIDE — L4 at top (edge), L1 at bottom (closest to center)
+  let rightHTML = '<div style="font-size:11px;text-align:center;color:#185FA5;font-weight:600;padding:4px;background:#f0f6ff;border-bottom:1px solid #ddd;border-radius:6px 6px 0 0;">RIGHT SIDE</div>';
+  rightHTML += secHeader;
+  for(let lv=LEVELS-1; lv>=0; lv--){
+    rightHTML += `<div style="display:flex;align-items:center;margin-bottom:2px;">
+      <div style="width:30px;font-size:10px;color:#999;font-weight:600;text-align:right;padding-right:6px;">L${lv+1}</div>`;
+    for(let sec=0; sec<SECTIONS; sec++){
+      const s = grid[sec][lv][0];
+      const id = `cell-${sec}-${lv}-0`;
+      if(s){
+        const color = COLORS[s.size]||'#185FA5';
+        rightHTML += `<div id="${id}" onclick="toggleCell(${sec},${lv},0)" style="flex:1;margin:1px;height:44px;border:2px solid ${color};background:${color}22;border-radius:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;font-size:11px;font-weight:700;color:${color};">
+          ${s.size}"<span style="font-size:9px;font-weight:400;">${s.len}ft</span></div>`;
+      } else {
+        rightHTML += `<div id="${id}" onclick="toggleCell(${sec},${lv},0)" style="flex:1;margin:1px;height:44px;border:2px dashed #ddd;border-radius:4px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#ccc;font-size:18px;">+</div>`;
+      }
+    }
+    rightHTML += '</div>';
+  }
+
+  // CENTER LINE
+  const centerLine = '<div style="height:3px;background:#333;margin:4px 0;"></div>';
+
+  // LEFT SIDE — L1 at top (closest to center), L4 at bottom (edge)
+  let leftHTML = '';
   for(let lv=0; lv<LEVELS; lv++){
-    const tr = document.createElement('tr');
-    // Level label
-    const lvTd = document.createElement('td');
-    lvTd.style = 'border:none;font-size:10px;color:#aaa;width:20px;padding-right:4px;white-space:nowrap;';
-    lvTd.textContent = 'L'+(lv+1);
-    tr.appendChild(lvTd);
-
+    leftHTML += `<div style="display:flex;align-items:center;margin-bottom:2px;">
+      <div style="width:30px;font-size:10px;color:#999;font-weight:600;text-align:right;padding-right:6px;">L${lv+1}</div>`;
     for(let sec=0; sec<SECTIONS; sec++){
-      // RIGHT cell
-      const tdR = document.createElement('td');
-      renderCell(tdR, sec, lv, 0);
-      tr.appendChild(tdR);
+      const s = grid[sec][lv][1];
+      const id = `cell-${sec}-${lv}-1`;
+      if(s){
+        const color = COLORS[s.size]||'#0F6E56';
+        leftHTML += `<div id="${id}" onclick="toggleCell(${sec},${lv},1)" style="flex:1;margin:1px;height:44px;border:2px solid ${color};background:${color}22;border-radius:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;font-size:11px;font-weight:700;color:${color};">
+          ${s.size}"<span style="font-size:9px;font-weight:400;">${s.len}ft</span></div>`;
+      } else {
+        leftHTML += `<div id="${id}" onclick="toggleCell(${sec},${lv},1)" style="flex:1;margin:1px;height:44px;border:2px dashed #ddd;border-radius:4px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#ccc;font-size:18px;">+</div>`;
+      }
     }
-    // Center divider
-    const divTd = document.createElement('td');
-    divTd.style='border:none;width:8px;background:linear-gradient(to right,#ddd,#ddd);background-size:2px 100%;background-repeat:no-repeat;background-position:center;';
-    tr.appendChild(divTd);
-
-    for(let sec=0; sec<SECTIONS; sec++){
-      // LEFT cell
-      const tdL = document.createElement('td');
-      renderCell(tdL, sec, lv, 1);
-      tr.appendChild(tdL);
-    }
-    tbl.appendChild(tr);
+    leftHTML += '</div>';
   }
+  leftHTML += '<div style="font-size:11px;text-align:center;color:#0F6E56;font-weight:600;padding:4px;background:#e1f5ee;border-top:1px solid #ddd;border-radius:0 0 6px 6px;">LEFT SIDE</div>';
+
+  wrap.innerHTML = `<div style="border:2px solid #ccc;border-radius:6px;overflow:hidden;padding:8px;">
+    ${rightHTML}${centerLine}${leftHTML}
+  </div>`;
 }
 
-function renderCell(td, sec, lv, side){
-  const s = grid[sec][lv][side];
-  if(s){
-    td.classList.add('filled');
-    td.classList.remove('empty');
-    const color = COLORS[s.size]||'#378ADD';
-    td.style.background = color+'22';
-    td.style.borderColor = color;
-    td.style.color = color;
-    td.innerHTML = `<div style="font-size:11px;font-weight:700;">${s.size}"</div><div style="font-size:9px;">${s.len}ft</div>`;
+function toggleCell(sec, lv, side){
+  if(grid[sec][lv][side]){
+    grid[sec][lv][side] = null;
   } else {
-    td.classList.remove('filled');
-    td.classList.add('empty');
-    td.style.background = '';
-    td.style.borderColor = '';
-    td.style.color = '#ccc';
-    td.innerHTML = '+';
+    const size = document.getElementById('sel-size').value;
+    const len = parseInt(document.getElementById('sel-len').value);
+    const b = BUNDLES[size][len];
+    if(b) grid[sec][lv][side] = {size,len,w:b.w,h:b.h,l:b.l};
   }
-  td.onclick = ()=>{
-    if(grid[sec][lv][side]){
-      grid[sec][lv][side] = null;
-    } else {
-      const size = document.getElementById('sel-size').value;
-      const len = parseInt(document.getElementById('sel-len').value);
-      const b = BUNDLES[size][len];
-      if(b) grid[sec][lv][side] = {size,len,w:b.w,h:b.h,l:b.l};
-    }
-    buildTGrid();
-    update();
-  };
+  buildTGrid();
+  update();
 }
+
+// renderCell replaced by toggleCell
 
 function clearAll(){ initGrid(); buildTGrid(); update(); }
 
