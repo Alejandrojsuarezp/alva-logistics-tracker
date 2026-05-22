@@ -564,7 +564,19 @@ function draw360(){
   const secL=t.l/SECTIONS;
 
   // Deck
-  drawBox3d(ctx,-TLh,-deckH,-TWh,TLh,0,TWh,'#888888','99');
+  if(t.type==='stepdeck'){
+    const upperL = 132; // 11ft upper deck at front
+    const upperH = t.deckHigh;
+    const lowerH = t.deckLow;
+    // Upper deck (front)
+    drawBox3d(ctx,-TLh,-upperH,-TWh,-TLh+upperL,0,TWh,'#777777','99');
+    // Step transition
+    drawBox3d(ctx,-TLh+upperL,-upperH,-TWh,-TLh+upperL+10,-lowerH,TWh,'#666666','99');
+    // Lower deck (back)
+    drawBox3d(ctx,-TLh+upperL+10,-lowerH,-TWh,TLh,0,TWh,'#888888','99');
+  } else {
+    drawBox3d(ctx,-TLh,-deckH,-TWh,TLh,0,TWh,'#888888','99');
+  }
 
   // Bundles — with gaps between sections and between stacks
   const faces=[];
