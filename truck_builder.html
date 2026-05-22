@@ -6,62 +6,49 @@
 <title>Alva Truck Builder</title>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #1a1a1a; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f2f5; color: #1a1a1a; }
 header { background: #1e3a5f; color: white; padding: 14px 24px; display: flex; align-items: center; gap: 12px; }
 header h1 { font-size: 20px; font-weight: 600; }
 header span { font-size: 13px; opacity: 0.7; }
-.container { display: grid; grid-template-columns: 280px 1fr; gap: 0; height: calc(100vh - 52px); }
+.container { display: grid; grid-template-columns: 260px 1fr; height: calc(100vh - 52px); }
 .sidebar { background: white; border-right: 1px solid #e0e0e0; padding: 16px; overflow-y: auto; }
 .main { padding: 16px; overflow-y: auto; }
 .section { margin-bottom: 20px; }
-.section h3 { font-size: 12px; font-weight: 600; color: #666; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px; }
-.field { margin-bottom: 12px; }
+.section h3 { font-size: 11px; font-weight: 700; color: #999; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 10px; }
+.field { margin-bottom: 10px; }
 .field label { font-size: 12px; color: #666; display: block; margin-bottom: 4px; }
-.field select, .field input { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
-.btn { width: 100%; padding: 10px; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; margin-bottom: 8px; }
+.field select, .field input { width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: white; }
+.btn { width: 100%; padding: 10px; border: none; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; margin-bottom: 8px; transition: opacity .15s; }
+.btn:hover { opacity: 0.85; }
 .btn-primary { background: #1e3a5f; color: white; }
-.btn-primary:hover { background: #2a4f7c; }
-.btn-danger { background: #fee; color: #c00; border: 1px solid #fcc; }
-.btn-danger:hover { background: #fcc; }
+.btn-clear { background: #fee; color: #c00; border: 1px solid #fcc; }
 .metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
-.metric { background: #f8f8f8; border-radius: 6px; padding: 10px; text-align: center; }
-.metric .val { font-size: 20px; font-weight: 700; color: #1e3a5f; }
-.metric .lbl { font-size: 11px; color: #888; margin-top: 2px; }
+.metric { background: #f5f7fa; border-radius: 8px; padding: 10px; text-align: center; }
+.metric .val { font-size: 22px; font-weight: 700; color: #1e3a5f; }
+.metric .lbl { font-size: 11px; color: #999; margin-top: 2px; }
 .alert { padding: 8px 12px; border-radius: 6px; font-size: 13px; margin-bottom: 10px; }
 .alert-ok { background: #e1f5ee; color: #0f6e56; }
-.alert-warn { background: #fff3cd; color: #856404; }
-.alert-err { background: #fee; color: #c00; }
-.bundle-list { max-height: 150px; overflow-y: auto; }
-.bundle-item { display: flex; justify-content: space-between; align-items: center; padding: 6px 8px; border-radius: 4px; margin-bottom: 4px; font-size: 13px; cursor: pointer; border: 2px solid transparent; }
-.bundle-item.active { border-color: #1e3a5f; }
-.bundle-dot { width: 12px; height: 12px; border-radius: 3px; }
-.views { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
-.view-box { background: white; border-radius: 8px; border: 1px solid #e0e0e0; padding: 10px; }
-.view-title { font-size: 12px; font-weight: 600; color: #666; margin-bottom: 8px; text-align: center; }
-canvas { display: block; border-radius: 4px; cursor: crosshair; }
-.draft-wrap { background: white; border-radius: 8px; border: 1px solid #e0e0e0; padding: 16px; }
-.draft-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-.draft-title { font-size: 13px; font-weight: 600; color: #333; }
-.draft-hint { font-size: 11px; color: #999; }
-#draft-canvas { cursor: pointer; border: 1px solid #e0e0e0; border-radius: 4px; }
-.legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: #666; margin-top: 8px; }
-.legend span { display: flex; align-items: center; gap: 4px; }
-.legend-dot { width: 10px; height: 10px; border-radius: 2px; }
+.alert-err { background: #fee2e2; color: #991b1b; }
+.panel { background: white; border-radius: 10px; border: 1px solid #e0e0e0; padding: 14px; margin-bottom: 14px; }
+.panel-title { font-size: 12px; font-weight: 600; color: #666; text-align: center; margin-bottom: 10px; }
+canvas { display: block; width: 100%; }
+#cv-draft { cursor: pointer; }
+.row-label { font-size: 11px; color: #999; }
 </style>
 </head>
 <body>
 <header>
   <div>🚛</div>
   <h1>Alva Truck Builder</h1>
-  <span>Flatbed 48' — Click on the draft to place bundles</span>
+  <span>Flatbed 48' — Click draft to place bundles</span>
 </header>
 <div class="container">
   <div class="sidebar">
     <div class="section">
-      <h3>Bundle Selection</h3>
+      <h3>Bundle</h3>
       <div class="field">
         <label>Pipe size</label>
-        <select id="sel-size">
+        <select id="sel-size" onchange="onSizeChange()">
           <option value="1/2">1/2"</option><option value="3/4">3/4"</option>
           <option value="1">1"</option><option value="1-1/4">1-1/4"</option>
           <option value="1-1/2">1-1/2"</option><option value="2">2"</option>
@@ -74,52 +61,52 @@ canvas { display: block; border-radius: 4px; cursor: crosshair; }
         <label>Length</label>
         <select id="sel-len"><option value="10">10 ft</option><option value="20">20 ft</option></select>
       </div>
-      <button class="btn btn-primary" onclick="setMode('place')">+ Place Bundle</button>
-      <button class="btn btn-danger" onclick="clearAll()">Clear All</button>
+      <div class="field">
+        <label>Stacks high (per position)</label>
+        <input type="number" id="sel-stacks" value="3" min="1" max="6" onchange="update()">
+      </div>
+      <button class="btn btn-primary" onclick="addMode=true">+ Click draft to place</button>
+      <button class="btn btn-clear" onclick="clearAll()">Clear All</button>
     </div>
 
     <div class="section">
-      <h3>Load Summary</h3>
+      <h3>Summary</h3>
       <div id="alert-box"></div>
       <div class="metrics">
         <div class="metric"><div class="val" id="m-total">0</div><div class="lbl">Bundles</div></div>
-        <div class="metric"><div class="val" id="m-height">—</div><div class="lbl">Max Height</div></div>
-        <div class="metric"><div class="val" id="m-left">0</div><div class="lbl">Left lbs</div></div>
-        <div class="metric"><div class="val" id="m-right">0</div><div class="lbl">Right lbs</div></div>
+        <div class="metric"><div class="val" id="m-height">—</div><div class="lbl">Height</div></div>
+        <div class="metric"><div class="val" id="m-groups">0</div><div class="lbl">Groups</div></div>
+        <div class="metric"><div class="val" id="m-length">0ft</div><div class="lbl">Length used</div></div>
       </div>
-    </div>
-
-    <div class="section">
-      <h3>Bundles on Trailer</h3>
-      <div class="bundle-list" id="bundle-list"></div>
     </div>
   </div>
 
   <div class="main">
-    <div class="draft-wrap" style="margin-bottom:16px">
-      <div class="draft-header">
-        <div class="draft-title">Loading Diagram — Top View</div>
-        <div class="draft-hint">Click to place • Click bundle to remove</div>
+    <div class="panel">
+      <div class="panel-title">Loading Diagram — Top View &nbsp;|&nbsp; <span style="font-weight:400;color:#999">Click empty cell to add • Click filled cell to remove</span></div>
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:#999;margin-bottom:4px;padding:0 2px">
+        <span>← FRONT</span><span>BACK →</span>
       </div>
-      <div style="text-align:center;font-size:11px;color:#999;margin-bottom:4px;">← FRONT &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BACK →</div>
-      <canvas id="draft-canvas"></canvas>
-      <div style="display:flex;justify-content:space-between;font-size:11px;color:#999;margin-top:4px;"><span>LEFT SIDE</span><span>RIGHT SIDE</span></div>
-    </div>
-
-    <div class="views">
-      <div class="view-box">
-        <div class="view-title">Front View (Width × Height)</div>
-        <canvas id="cv-front"></canvas>
-      </div>
-      <div class="view-box">
-        <div class="view-title">Side View (Length × Height)</div>
-        <canvas id="cv-side"></canvas>
+      <canvas id="cv-draft" height="180"></canvas>
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:#999;margin-top:4px;padding:0 2px">
+        <span>LEFT SIDE</span><span>RIGHT SIDE</span>
       </div>
     </div>
 
-    <div class="view-box">
-      <div class="view-title">3D View — drag to rotate</div>
-      <canvas id="cv-360"></canvas>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+      <div class="panel">
+        <div class="panel-title">Front View (Width × Height)</div>
+        <canvas id="cv-front" height="200"></canvas>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Side View (Length × Height)</div>
+        <canvas id="cv-side" height="200"></canvas>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">3D View — drag to rotate</div>
+      <canvas id="cv-360" height="320"></canvas>
     </div>
   </div>
 </div>
@@ -146,274 +133,297 @@ const COLORS = {
   "3-1/2":"#378ADD","4":"#185FA5","5":"#BA7517","6":"#854F0B","8":"#639922"
 };
 
-const TW=102, TL=576, DECK=60, LEGAL=162;
-const ROWS=4, COLS=6;
-let grid = Array.from({length:ROWS},()=>Array(COLS).fill(null));
-let mode = 'place';
+// Trailer constants (inches)
+const TW = 102, TL = 576, DECK = 60, LEGAL = 162;
+// Grid: ROWS = groups along trailer, COLS = 2 (left + right of center)
+const ROWS = 4, COLS = 2;
 
-function setMode(m){ mode=m; }
+// grid[r][c] = null or {size, len, stacks, w, h, l}
+let grid = Array.from({length:ROWS}, () => Array(COLS).fill(null));
+let addMode = true;
 
-function getBundle(){
+function getB() {
   const size = document.getElementById('sel-size').value;
   const len = parseInt(document.getElementById('sel-len').value);
+  const stacks = parseInt(document.getElementById('sel-stacks').value) || 3;
   const b = BUNDLES[size][len];
-  if(!b) return null;
-  return {size, len, w:b.w, h:b.h, l:b.l};
+  if (!b) return null;
+  return {size, len, stacks, w:b.w, h:b.h, l:b.l};
 }
 
-function clearAll(){
-  grid = Array.from({length:ROWS},()=>Array(COLS).fill(null));
+function onSizeChange() {
+  const size = document.getElementById('sel-size').value;
+  const b = BUNDLES[size];
+  const lenSel = document.getElementById('sel-len');
+  lenSel.innerHTML = '';
+  if (b[10]) lenSel.innerHTML += '<option value="10">10 ft</option>';
+  if (b[20]) lenSel.innerHTML += '<option value="20">20 ft</option>';
+}
+
+function clearAll() {
+  grid = Array.from({length:ROWS}, () => Array(COLS).fill(null));
   update();
 }
 
-function update(){
+function update() {
   drawDraft();
   drawFront();
   drawSide();
   draw360();
   updateStats();
-  updateList();
 }
 
-function updateStats(){
-  let total=0, leftW=0, rightW=0;
-  let colH = Array(COLS).fill(DECK);
-  for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){
-    const s=grid[r][c];
-    if(s){ total++; const ew=s.w*s.h*0.000284; if(c<3)leftW+=ew; else rightW+=ew; colH[c]+=s.h; }
+function updateStats() {
+  let total = 0, groups = 0, maxLen = 0;
+  let maxH = DECK;
+  for (let r = 0; r < ROWS; r++) {
+    let rowHasBundle = false;
+    for (let c = 0; c < COLS; c++) {
+      const s = grid[r][c];
+      if (s) {
+        total += s.stacks;
+        rowHasBundle = true;
+        const colH = DECK + s.stacks * s.h;
+        if (colH > maxH) maxH = colH;
+      }
+    }
+    if (rowHasBundle) { groups++; maxLen = (r+1) * (grid[r][0]||grid[r][1]).l; }
   }
-  const maxH = Math.max(...colH);
-  const ft=Math.floor(maxH/12), inch=Math.round(maxH%12);
-  document.getElementById('m-total').textContent=total;
-  document.getElementById('m-height').textContent=ft+"'"+inch+'"';
-  document.getElementById('m-left').textContent=Math.round(leftW);
-  document.getElementById('m-right').textContent=Math.round(rightW);
-  const ab=document.getElementById('alert-box');
-  if(maxH>LEGAL+DECK) ab.innerHTML='<div class="alert alert-err">Height exceeded — '+ft+"'"+inch+'" > 13\'6"</div>';
-  else if(total>0) ab.innerHTML='<div class="alert alert-ok">Load OK — '+ft+"'"+inch+'" tall</div>';
-  else ab.innerHTML='';
+  const ft = Math.floor(maxH/12), inch = Math.round(maxH%12);
+  document.getElementById('m-total').textContent = total;
+  document.getElementById('m-height').textContent = ft+"'"+inch+'"';
+  document.getElementById('m-groups').textContent = groups;
+  document.getElementById('m-length').textContent = Math.round(maxLen/12)+'ft';
+  const ab = document.getElementById('alert-box');
+  if (maxH > LEGAL+DECK) ab.innerHTML = '<div class="alert alert-err">Height exceeded — '+ft+"'"+inch+'" > 13\'6"</div>';
+  else if (total > 0) ab.innerHTML = '<div class="alert alert-ok">Load OK — '+ft+"'"+inch+'" tall</div>';
+  else ab.innerHTML = '';
 }
 
-function updateList(){
-  const el=document.getElementById('bundle-list');
-  const counts={};
-  for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){
-    const s=grid[r][c];
-    if(s){ const k=s.size+'_'+s.len; counts[k]=(counts[k]||{size:s.size,len:s.len,count:0}); counts[k].count++; }
-  }
-  el.innerHTML=Object.values(counts).map(c=>`
-    <div class="bundle-item">
-      <span><span class="bundle-dot" style="background:${COLORS[c.size]};display:inline-block"></span> ${c.size}" ${c.len}ft</span>
-      <span style="font-weight:600">${c.count}</span>
-    </div>`).join('') || '<div style="font-size:12px;color:#999;padding:8px">No bundles placed yet</div>';
-}
+// ── DRAFT (top view) ─────────────────────
+const draftCv = document.getElementById('cv-draft');
 
-// DRAFT CANVAS
-const draftCv = document.getElementById('draft-canvas');
-function resizeDraft(){
-  const w = draftCv.parentElement.clientWidth - 32;
-  draftCv.width = w;
-  draftCv.height = Math.round(w * 0.28);
-  drawDraft();
-}
+function drawDraft() {
+  const W = draftCv.offsetWidth || 800;
+  draftCv.width = W;
+  const cellW = W / ROWS, cellH = draftCv.height / COLS;
+  const ctx = draftCv.getContext('2d');
+  ctx.clearRect(0, 0, W, draftCv.height);
 
-function drawDraft(){
-  const cv=draftCv, ctx=cv.getContext('2d');
-  const W=cv.width, H=cv.height;
-  ctx.clearRect(0,0,W,H);
-  const PAD=2;
-  const cellW=(W-PAD*2)/COLS, cellH=(H-PAD*2)/ROWS;
-
-  // Background
-  ctx.fillStyle='#f8f8f8';
-  ctx.fillRect(PAD,PAD,W-PAD*2,H-PAD*2);
-
-  for(let r=0;r<ROWS;r++){
-    for(let c=0;c<COLS;c++){
-      const x=PAD+c*cellW, y=PAD+r*cellH;
-      const s=grid[r][c];
-      if(s){
-        ctx.fillStyle=COLORS[s.size]+'cc';
-        ctx.fillRect(x+2,y+2,cellW-4,cellH-4);
-        ctx.fillStyle='white';
-        ctx.font='bold '+(cellH*0.3)+'px sans-serif';
-        ctx.textAlign='center';
-        ctx.textBaseline='middle';
-        ctx.fillText(s.size+'"',x+cellW/2,y+cellH/2);
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const x = r * cellW, y = c * cellH;
+      const s = grid[r][c];
+      if (s) {
+        ctx.fillStyle = COLORS[s.size] + 'dd';
+        ctx.fillRect(x+2, y+2, cellW-4, cellH-4);
+        ctx.fillStyle = 'white';
+        ctx.font = 'bold ' + Math.min(cellH*0.35, 22) + 'px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(s.size+'" ×'+s.stacks, x+cellW/2, y+cellH/2);
       } else {
-        ctx.strokeStyle='#ccc';
-        ctx.lineWidth=1;
-        ctx.setLineDash([4,3]);
-        ctx.strokeRect(x+2,y+2,cellW-4,cellH-4);
+        ctx.strokeStyle = '#ccc';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([6, 4]);
+        ctx.strokeRect(x+3, y+3, cellW-6, cellH-6);
         ctx.setLineDash([]);
+        ctx.fillStyle = '#ddd';
+        ctx.font = '20px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('+', x+cellW/2, y+cellH/2);
       }
     }
   }
 
-  // Center line
-  const cx=PAD+COLS/2*cellW;
-  ctx.strokeStyle='#333';
-  ctx.lineWidth=2;
+  // Center line (horizontal, dividing left/right)
+  ctx.strokeStyle = '#222';
+  ctx.lineWidth = 2.5;
   ctx.setLineDash([]);
   ctx.beginPath();
-  ctx.moveTo(cx,PAD);
-  ctx.lineTo(cx,H-PAD);
+  ctx.moveTo(0, draftCv.height/2);
+  ctx.lineTo(W, draftCv.height/2);
   ctx.stroke();
+
+  // Column dividers
+  ctx.strokeStyle = '#ddd';
+  ctx.lineWidth = 1;
+  for (let r = 1; r < ROWS; r++) {
+    ctx.beginPath();
+    ctx.moveTo(r*cellW, 0);
+    ctx.lineTo(r*cellW, draftCv.height);
+    ctx.stroke();
+  }
 }
 
-draftCv.addEventListener('click', e=>{
-  const rect=draftCv.getBoundingClientRect();
-  const x=e.clientX-rect.left, y=e.clientY-rect.top;
-  const PAD=2;
-  const cellW=(draftCv.width-PAD*2)/COLS, cellH=(draftCv.height-PAD*2)/ROWS;
-  const c=Math.floor((x-PAD)/cellW), r=Math.floor((y-PAD)/cellH);
-  if(r<0||r>=ROWS||c<0||c>=COLS) return;
-  if(grid[r][c]){
-    grid[r][c]=null;
+draftCv.addEventListener('click', e => {
+  const rect = draftCv.getBoundingClientRect();
+  const x = (e.clientX - rect.left) * (draftCv.width / rect.width);
+  const y = (e.clientY - rect.top) * (draftCv.height / rect.height);
+  const cellW = draftCv.width / ROWS, cellH = draftCv.height / COLS;
+  const r = Math.floor(x / cellW), c = Math.floor(y / cellH);
+  if (r < 0 || r >= ROWS || c < 0 || c >= COLS) return;
+  if (grid[r][c]) {
+    grid[r][c] = null;
   } else {
-    const b=getBundle();
-    if(b) grid[r][c]=b;
+    const b = getB(); if (!b) return;
+    grid[r][c] = b;
   }
   update();
 });
 
-// FRONT VIEW
-function drawFront(){
-  const cv=document.getElementById('cv-front');
-  cv.width=cv.parentElement.clientWidth-20;
-  cv.height=180;
-  const ctx=cv.getContext('2d');
-  const W=cv.width, H=180;
-  ctx.clearRect(0,0,W,H);
-  const PAD=30, baseY=165, drawH=130, drawW=W-PAD*2;
-  const TOTAL=LEGAL+DECK;
-  const sH=drawH/TOTAL, sW=drawW/(TW+20);
-  const deckPx=DECK*sH, trailerWpx=TW*sW, offsetX=PAD+10;
-  ctx.fillStyle='#888';
-  ctx.fillRect(offsetX,baseY-deckPx,trailerWpx,deckPx);
-  ctx.strokeStyle='#E24B4A';ctx.lineWidth=1.5;ctx.setLineDash([5,4]);
-  const limY=baseY-deckPx-LEGAL*sH;
-  ctx.beginPath();ctx.moveTo(offsetX-4,limY);ctx.lineTo(offsetX+trailerWpx+4,limY);ctx.stroke();
+// ── FRONT VIEW ───────────────────────────
+function drawFront() {
+  const cv = document.getElementById('cv-front');
+  cv.width = cv.offsetWidth || 400;
+  const ctx = cv.getContext('2d');
+  const W = cv.width, H = cv.height;
+  ctx.clearRect(0, 0, W, H);
+  const PAD = 30, baseY = H - 20, drawH = H - 50, drawW = W - PAD*2;
+  const TOTAL = LEGAL + DECK;
+  const sH = drawH / TOTAL, sW = drawW / (TW + 20);
+  const deckPx = DECK * sH, trailerWpx = TW * sW, offsetX = PAD + 10;
+
+  ctx.fillStyle = '#aaa';
+  ctx.fillRect(offsetX, baseY - deckPx, trailerWpx, deckPx);
+
+  // Legal line
+  ctx.strokeStyle = '#E24B4A'; ctx.lineWidth = 1.5; ctx.setLineDash([5,4]);
+  const limY = baseY - deckPx - LEGAL * sH;
+  ctx.beginPath(); ctx.moveTo(offsetX-4, limY); ctx.lineTo(offsetX+trailerWpx+4, limY); ctx.stroke();
   ctx.setLineDash([]);
-  ctx.fillStyle='#E24B4A';ctx.font='10px sans-serif';ctx.fillText("13'6\"",offsetX+trailerWpx+6,limY+4);
-  const colW=TW/COLS*sW;
-  const colHeights=Array(COLS).fill(0);
-  for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++) if(grid[r][c]) colHeights[c]++;
-  for(let c=0;c<COLS;c++){
-    const s=grid.flat().find((sl,i)=>sl&&i%COLS===c); if(!s) continue;
-    for(let row=0;row<colHeights[c];row++){
-      const bX=offsetX+c*colW, bY=baseY-deckPx-(row+1)*s.h*sH;
-      ctx.fillStyle=COLORS[s.size]+'cc';
-      ctx.fillRect(bX+1,bY+1,colW-2,s.h*sH-1);
-      ctx.strokeStyle=COLORS[s.size];ctx.lineWidth=0.5;
-      ctx.strokeRect(bX+1,bY+1,colW-2,s.h*sH-1);
+  ctx.fillStyle = '#E24B4A'; ctx.font = '10px sans-serif'; ctx.fillText("13'6\"", offsetX+trailerWpx+6, limY+4);
+
+  // Draw bundles from front group
+  const frontGroup = grid[0];
+  const bw = TW / 2 * sW; // each side occupies half trailer width
+
+  for (let c = 0; c < COLS; c++) {
+    const s = frontGroup[c]; if (!s) continue;
+    const bundleW = s.w * sW;
+    // c=0 is LEFT, c=1 is RIGHT
+    for (let stack = 0; stack < s.stacks; stack++) {
+      const bX = c === 0 ? offsetX + (TW/2 - s.w) * sW : offsetX + TW/2 * sW;
+      const bY = baseY - deckPx - (stack+1) * s.h * sH;
+      ctx.fillStyle = COLORS[s.size] + 'cc';
+      ctx.fillRect(bX, bY, bundleW, s.h*sH - 1);
+      ctx.strokeStyle = COLORS[s.size]; ctx.lineWidth = 0.5;
+      ctx.strokeRect(bX, bY, bundleW, s.h*sH - 1);
     }
   }
-  ctx.strokeStyle='#333';ctx.lineWidth=1;ctx.setLineDash([3,3]);
-  ctx.beginPath();ctx.moveTo(offsetX+trailerWpx/2,baseY-deckPx);ctx.lineTo(offsetX+trailerWpx/2,baseY);ctx.stroke();
+
+  // Center line
+  ctx.strokeStyle = '#333'; ctx.lineWidth = 1; ctx.setLineDash([3,3]);
+  ctx.beginPath(); ctx.moveTo(offsetX+trailerWpx/2, baseY-deckPx); ctx.lineTo(offsetX+trailerWpx/2, baseY); ctx.stroke();
   ctx.setLineDash([]);
-  ctx.fillStyle='#666';ctx.font='10px sans-serif';ctx.textAlign='center';
-  ctx.fillText('102" (8\'6")',offsetX+trailerWpx/2,baseY+14);ctx.textAlign='left';
+  ctx.fillStyle = '#666'; ctx.font = '10px sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText('102" (8\'6")', offsetX+trailerWpx/2, baseY+12); ctx.textAlign = 'left';
 }
 
-// SIDE VIEW
-function drawSide(){
-  const cv=document.getElementById('cv-side');
-  cv.width=cv.parentElement.clientWidth-20;
-  cv.height=180;
-  const ctx=cv.getContext('2d');
-  const W=cv.width, H=180;
-  ctx.clearRect(0,0,W,H);
-  const PAD=8, baseY=165, drawH=130, drawW=W-PAD*2;
-  const TOTAL=LEGAL+DECK;
-  const sH=drawH/TOTAL, sL=drawW/(TL+20);
-  const deckPx=DECK*sH, trailerLpx=TL*sL;
-  ctx.fillStyle='#888';
-  ctx.fillRect(PAD,baseY-deckPx,trailerLpx,deckPx);
-  ctx.strokeStyle='#E24B4A';ctx.lineWidth=1.5;ctx.setLineDash([5,4]);
-  const limY=baseY-deckPx-LEGAL*sH;
-  ctx.beginPath();ctx.moveTo(PAD-4,limY);ctx.lineTo(PAD+trailerLpx+4,limY);ctx.stroke();
+// ── SIDE VIEW ────────────────────────────
+function drawSide() {
+  const cv = document.getElementById('cv-side');
+  cv.width = cv.offsetWidth || 400;
+  const ctx = cv.getContext('2d');
+  const W = cv.width, H = cv.height;
+  ctx.clearRect(0, 0, W, H);
+  const PAD = 8, baseY = H - 20, drawH = H - 50, drawW = W - PAD*2;
+  const TOTAL = LEGAL + DECK;
+  const sH = drawH / TOTAL, sL = drawW / (TL + 20);
+  const deckPx = DECK * sH, trailerLpx = TL * sL;
+
+  ctx.fillStyle = '#aaa';
+  ctx.fillRect(PAD, baseY-deckPx, trailerLpx, deckPx);
+
+  ctx.strokeStyle = '#E24B4A'; ctx.lineWidth = 1.5; ctx.setLineDash([5,4]);
+  const limY = baseY - deckPx - LEGAL * sH;
+  ctx.beginPath(); ctx.moveTo(PAD-4,limY); ctx.lineTo(PAD+trailerLpx+4,limY); ctx.stroke();
   ctx.setLineDash([]);
-  ctx.fillStyle='#E24B4A';ctx.font='10px sans-serif';ctx.fillText("13'6\"",PAD+trailerLpx+6,limY+4);
-  const rowL=TL/ROWS;
-  for(let r=0;r<ROWS;r++){
-    const colH=Array(COLS).fill(0);
-    for(let c=0;c<COLS;c++) if(grid[r][c]) colH[c]++;
-    const maxStack=Math.max(...colH);
-    const s=grid[r].find(sl=>sl); if(!s) continue;
-    const gX=PAD+r*rowL*sL, gW=rowL*sL-2;
-    for(let row=0;row<maxStack;row++){
-      const bY=baseY-deckPx-(row+1)*s.h*sH;
-      ctx.fillStyle=COLORS[s.size]+'cc';
-      ctx.fillRect(gX+1,bY+1,gW,s.h*sH-1);
-      ctx.strokeStyle=COLORS[s.size];ctx.lineWidth=0.5;
-      ctx.strokeRect(gX+1,bY+1,gW,s.h*sH-1);
+  ctx.fillStyle = '#E24B4A'; ctx.font = '10px sans-serif'; ctx.fillText("13'6\"", PAD+trailerLpx+6, limY+4);
+
+  for (let r = 0; r < ROWS; r++) {
+    const s = grid[r][0] || grid[r][1]; if (!s) continue;
+    const gX = PAD + r * s.l * sL;
+    const gW = s.l * sL - 2;
+    for (let stack = 0; stack < s.stacks; stack++) {
+      const bY = baseY - deckPx - (stack+1) * s.h * sH;
+      ctx.fillStyle = COLORS[s.size] + 'cc';
+      ctx.fillRect(gX, bY, gW, s.h*sH - 1);
+      ctx.strokeStyle = COLORS[s.size]; ctx.lineWidth = 0.5;
+      ctx.strokeRect(gX, bY, gW, s.h*sH - 1);
     }
   }
-  ctx.fillStyle='#666';ctx.font='10px sans-serif';ctx.textAlign='center';
-  ctx.fillText('48ft',PAD+trailerLpx/2,baseY+14);ctx.textAlign='left';
+
+  ctx.fillStyle = '#666'; ctx.font = '10px sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText('48ft', PAD+trailerLpx/2, baseY+12); ctx.textAlign = 'left';
 }
 
-// 360 VIEW
-let rotX=0.4, rotY=-0.5, dragging=false, lastX=0, lastY=0;
-const cv360=document.getElementById('cv-360');
-cv360.addEventListener('mousedown',e=>{dragging=true;lastX=e.clientX;lastY=e.clientY;});
-window.addEventListener('mouseup',()=>dragging=false);
-window.addEventListener('mousemove',e=>{
-  if(!dragging) return;
-  rotY+=(e.clientX-lastX)*0.01;rotX+=(e.clientY-lastY)*0.01;
-  lastX=e.clientX;lastY=e.clientY;draw360();
+// ── 3D VIEW ──────────────────────────────
+let rotX = 0.3, rotY = -0.6, dragging = false, lastX = 0, lastY = 0;
+const cv360 = document.getElementById('cv-360');
+cv360.addEventListener('mousedown', e => { dragging=true; lastX=e.clientX; lastY=e.clientY; });
+window.addEventListener('mouseup', () => dragging=false);
+window.addEventListener('mousemove', e => {
+  if (!dragging) return;
+  rotY += (e.clientX-lastX)*0.01; rotX += (e.clientY-lastY)*0.01;
+  lastX=e.clientX; lastY=e.clientY; draw360();
 });
 
-function project(x,y,z,cx,cy,scale){
+function project(x, y, z, cx, cy, scale) {
   const cosY=Math.cos(rotY),sinY=Math.sin(rotY),cosX=Math.cos(rotX),sinX=Math.sin(rotX);
-  const x2=x*cosY-z*sinY,z2=x*sinY+z*cosY,y2=y*cosX-z2*sinX,z3=y*sinX+z2*cosX;
-  const d=500/(500+z3+300);
-  return{px:cx+x2*d*scale,py:cy+y2*d*scale,d:z3};
+  const x2=x*cosY-z*sinY, z2=x*sinY+z*cosY;
+  const y2=y*cosX-z2*sinX, z3=y*sinX+z2*cosX;
+  const d = 600/(600+z3+200);
+  return {px:cx+x2*d*scale, py:cy+y2*d*scale, d:z3};
 }
 
-function draw360(){
-  cv360.width=cv360.parentElement.clientWidth-20;
-  cv360.height=280;
-  const ctx=cv360.getContext('2d');
-  const W=cv360.width,H=280;
-  ctx.clearRect(0,0,W,H);
-  const cx=W/2,cy=H/2,scale=0.32;
+function draw360() {
+  cv360.width = cv360.offsetWidth || 800;
+  const ctx = cv360.getContext('2d');
+  const W = cv360.width, H = cv360.height;
+  ctx.clearRect(0, 0, W, H);
+  const cx = W/2, cy = H/2, scale = 0.35;
+  const TLh = TL/2, TWh = TW/2;
 
-  function box(x1,y1,z1,x2,y2,z2,col,alpha){
-    const corners=[[x1,y1,z1],[x2,y1,z1],[x2,y2,z1],[x1,y2,z1],[x1,y1,z2],[x2,y1,z2],[x2,y2,z2],[x1,y2,z2]].map(([x,y,z])=>project(x,y,z,cx,cy,scale));
+  function box(x1,y1,z1,x2,y2,z2,col,alpha) {
+    const corners = [[x1,y1,z1],[x2,y1,z1],[x2,y2,z1],[x1,y2,z1],[x1,y1,z2],[x2,y1,z2],[x2,y2,z2],[x1,y2,z2]].map(([x,y,z])=>project(x,y,z,cx,cy,scale));
     [[0,1,2,3],[4,5,6,7],[0,1,5,4],[2,3,7,6],[0,3,7,4],[1,2,6,5]].map(f=>({f,d:f.reduce((s,i)=>s+corners[i].d,0)/4})).sort((a,b)=>b.d-a.d).forEach(({f})=>{
-      ctx.beginPath();f.forEach((i,j)=>{const p=corners[i];j?ctx.lineTo(p.px,p.py):ctx.moveTo(p.px,p.py);});
-      ctx.closePath();ctx.fillStyle=col+(alpha||'bb');ctx.fill();ctx.strokeStyle=col;ctx.lineWidth=0.5;ctx.stroke();
+      ctx.beginPath(); f.forEach((i,j)=>{const p=corners[i];j?ctx.lineTo(p.px,p.py):ctx.moveTo(p.px,p.py);}); ctx.closePath();
+      ctx.fillStyle=col+(alpha||'99'); ctx.fill(); ctx.strokeStyle=col; ctx.lineWidth=0.5; ctx.stroke();
     });
   }
 
-  const TLh=TL/2,TWh=TW/2;
-  box(-TLh,-DECK-2,-TWh,TLh,-DECK,TWh,'#888888','99');
+  // Trailer deck
+  box(-TLh,-DECK-2,-TWh, TLh,-DECK,TWh, '#888888', '88');
 
-  const rowL=TL/ROWS,colW=TW/COLS;
-  const faces=[];
-  for(let r=0;r<ROWS;r++){
-    for(let c=0;c<COLS;c++){
-      const s=grid[r][c];if(!s) continue;
-      const x1=-TLh+r*rowL,x2=x1+rowL-2;
-      const z1=-TWh+c*colW,z2=z1+colW-2;
-      let stackH=0;
-      for(let rr=0;rr<ROWS;rr++) if(grid[rr][c]) stackH++;
-      const y1=-DECK-s.h,y2=-DECK;
-      const avg=project((x1+x2)/2,(y1+y2)/2,(z1+z2)/2,cx,cy,scale);
-      faces.push({x1,y1:y1,z1,x2,y2:y2,z2,col:COLORS[s.size],d:avg.d});
+  // Bundles — 2 wide (left/right), stacked high, groups along length
+  const allFaces = [];
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const s = grid[r][c]; if (!s) continue;
+      const x1 = -TLh + r * s.l;
+      const x2 = x1 + s.l - 2;
+      // c=0 LEFT, c=1 RIGHT
+      const z1 = c === 0 ? -s.w : 0;
+      const z2 = c === 0 ? 0 : s.w;
+      for (let stack = 0; stack < s.stacks; stack++) {
+        const y1 = -DECK - (stack+1) * s.h;
+        const y2 = -DECK - stack * s.h;
+        const avg = project((x1+x2)/2,(y1+y2)/2,(z1+z2)/2,cx,cy,scale);
+        allFaces.push({x1,y1,z1,x2,y2,z2,col:COLORS[s.size],d:avg.d});
+      }
     }
   }
-  faces.sort((a,b)=>b.d-a.d).forEach(f=>box(f.x1,f.y1,f.z1,f.x2,f.y2,f.z2,f.col));
+  allFaces.sort((a,b)=>b.d-a.d).forEach(f=>box(f.x1,f.y1,f.z1,f.x2,f.y2,f.z2,f.col,'ee'));
 
-  ctx.fillStyle='#666';ctx.font='11px sans-serif';ctx.textAlign='center';
-  const fP=project(-TLh+rowL/2,-DECK-5,0,cx,cy,scale);
-  ctx.fillText('FRONT',fP.px,fP.py);ctx.textAlign='left';
+  // FRONT label
+  ctx.fillStyle='#666'; ctx.font='12px sans-serif'; ctx.textAlign='center';
+  const fp = project(-TLh+50,-DECK-5,0,cx,cy,scale);
+  ctx.fillText('FRONT',fp.px,fp.py); ctx.textAlign='left';
 }
 
-window.addEventListener('resize',()=>{resizeDraft();drawFront();drawSide();draw360();});
-resizeDraft();
+window.addEventListener('resize', () => { drawDraft(); drawFront(); drawSide(); draw360(); });
 update();
 </script>
 </body>
