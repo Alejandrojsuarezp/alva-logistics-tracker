@@ -1,7 +1,7 @@
 # ============================================
 # ALVA LOGISTICS TRACKER - Web Interface
 # ============================================
- 
+
 import streamlit as st
 import json
 import pandas as pd
@@ -10,23 +10,23 @@ from datetime import datetime
 from config import AIRTABLE_TOKEN, SHIPMENTS_TABLE
 from airtable_connection import get_all_shipments, get_loads, get_pricing, get_updates_log, get_bundle_dimensions
 from consolidation_detector import detectar_consolidaciones
- 
+
 # Page configuration
 st.set_page_config(
     page_title="Alva Logistics Tracker",
     page_icon="🚛",
     layout="wide"
 )
- 
+
 # Auto-refresh every 30 seconds without page reload
 from streamlit_autorefresh import st_autorefresh
 st_autorefresh(interval=30000)
- 
+
 # Sidebar navigation
 st.sidebar.title("🚛 Alva Logistics")
 st.sidebar.markdown("**Transportation System**")
 st.sidebar.markdown("---")
- 
+
 pagina = st.sidebar.radio("Navigation", [
     "Dashboard",
     "Shipments",
@@ -36,48 +36,48 @@ pagina = st.sidebar.radio("Navigation", [
     "Consolidations",
     "Truck Builder"
 ])
- 
+
 st.sidebar.markdown("---")
 st.sidebar.markdown(f"*Texas — {datetime.now().strftime('%m/%d/%Y')}*")
- 
+
 # Headers for Airtable
 HEADERS = {
     "Authorization": f"Bearer {AIRTABLE_TOKEN}",
     "Content-Type": "application/json"
 }
- 
+
 def update_status(record_id, new_status):
     url = f"https://api.airtable.com/v0/{st.secrets['BASE_ID']}/{SHIPMENTS_TABLE}/{record_id}"
     payload = {"fields": {"Warehouse Status": new_status}}
     response = requests.patch(url, headers=HEADERS, json=payload)
     return response
- 
+
 # ── DASHBOARD ──────────────────────────────
 if pagina == "Dashboard":
     st.title("Operations Dashboard")
     st.markdown(f"**Texas** — {datetime.now().strftime('%A, %B %d %Y')}")
     st.markdown("---")
- 
+
     with st.spinner("Loading data..."):
         shipments = get_all_shipments()
         loads = get_loads()
- 
+
     pending = [s for s in shipments if s["warehouse_status"] == "Pending Print"]
     in_progress = [s for s in shipments if s["warehouse_status"] == "In Progress"]
     ready = [s for s in shipments if s["warehouse_status"] == "Ready"]
     shipped = [s for s in shipments if s["warehouse_status"] == "Shipped"]
     active_loads = [l for l in loads if l["load_status"] != "Shipped"]
- 
+
     col1, col2, col3, col4, col5 = st.columns(5)
     col1.metric("Pending Print", len(pending))
     col2.metric("In Progress", len(in_progress))
     col3.metric("Ready", len(ready))
     col4.metric("Shipped", len(shipped))
     col5.metric("Active Loads", len(active_loads))
- 
+
     st.markdown("---")
     col_left, col_right = st.columns(2)
- 
+
     with col_left:
         st.subheader("Active Shipments")
         activos = pending + in_progress + ready
@@ -107,7 +107,7 @@ if pagina == "Dashboard":
             st.markdown(html_s, unsafe_allow_html=True)
         else:
             st.info("No active shipments.")
- 
+
     with col_right:
         st.subheader("Active Loads")
         if active_loads:
@@ -130,29 +130,29 @@ if pagina == "Dashboard":
             st.markdown(html_l, unsafe_allow_html=True)
         else:
             st.info("No active loads.")
- 
+
 # ── SHIPMENTS ──────────────────────────────
 elif pagina == "Shipments":
     st.title("Shipments")
     st.markdown("---")
- 
+
     with st.spinner("Loading shipments..."):
         shipments = get_all_shipments()
- 
+
     col_filter, col_count = st.columns([3, 1])
     with col_filter:
         filtro = st.selectbox("Filter by status", [
             "All", "Pending Print", "In Progress", "Ready", "Shipped"
         ])
- 
+
     if filtro != "All":
         shipments_filtrados = [s for s in shipments if s["warehouse_status"] == filtro]
     else:
         shipments_filtrados = shipments
- 
+
     with col_count:
         st.metric("Total", len(shipments_filtrados))
- 
+
     if shipments_filtrados:
         def fmt_weight(x):
             try: return f"{int(x):,}"
@@ -160,7 +160,7 @@ elif pagina == "Shipments":
         def fmt_date(x):
             try: return datetime.strptime(x, "%Y-%m-%d").strftime("%m-%d-%Y")
             except: return x if x else ""
- 
+
         html = """
         <style>
         .alva-table { width:100%; border-collapse:collapse; font-size:14px; }
@@ -204,12 +204,12 @@ elif pagina == "Shipments":
     st.markdown("---")
     st.subheader("Update Warehouse Status")
     st.caption("Select a shipment and update its status directly from here.")
- 
+
     shipment_sel = st.selectbox("Shipment", [s["shipment_number"] for s in shipments])
     nuevo_status = st.selectbox("New Status", [
         "Pending Print", "In Progress", "Ready", "Shipped"
     ])
- 
+
     if st.button("Update Status", type="primary"):
         shipment_obj = next((s for s in shipments if s["shipment_number"] == shipment_sel), None)
         if shipment_obj:
@@ -221,15 +221,15 @@ elif pagina == "Shipments":
                 st.error(f"Error {response.status_code}: {response.text}")
         else:
             st.error("Shipment not found")
- 
+
 # ── LOADS ──────────────────────────────────
 elif pagina == "Loads":
     st.title("Loads")
     st.markdown("---")
- 
+
     with st.spinner("Loading loads..."):
         loads = get_loads()
- 
+
     if loads:
         html_l = """
         <style>
@@ -264,29 +264,29 @@ elif pagina == "Loads":
         st.caption(f"Total: {len(loads)} loads")
     else:
         st.info("No loads registered.")
- 
+
 # ── PRICING ────────────────────────────────
 elif pagina == "Pricing":
     st.title("Pricing")
     st.markdown("---")
- 
+
     with st.spinner("Loading quotes..."):
         quotes = get_pricing()
- 
+
     col_filter, col_count = st.columns([3, 1])
     with col_filter:
         filtro_status = st.selectbox("Filter by status", [
             "All", "Pending", "Selected", "Lost"
         ])
- 
+
     if filtro_status != "All":
         quotes_filtrados = [q for q in quotes if q["status"] == filtro_status]
     else:
         quotes_filtrados = quotes
- 
+
     with col_count:
         st.metric("Total", len(quotes_filtrados))
- 
+
     if quotes_filtrados:
         html_p = """
         <style>
@@ -318,15 +318,15 @@ elif pagina == "Pricing":
         st.markdown(html_p, unsafe_allow_html=True)
     else:
         st.info("No quotes found with that filter.")
- 
+
 # ── UPDATES LOG ───────────────────────────
 elif pagina == "Updates Log":
     st.title("Updates Log")
     st.markdown("---")
- 
+
     with st.spinner("Loading updates..."):
         updates = get_updates_log()
- 
+
     if updates:
         html_u = """
         <style>
@@ -358,17 +358,17 @@ elif pagina == "Updates Log":
         st.caption(f"Total: {len(updates)} updates")
     else:
         st.info("No updates logged yet.")
- 
+
 # ── CONSOLIDATIONS ────────────────────────
 elif pagina == "Consolidations":
     st.title("Consolidation Detector")
     st.markdown("---")
     st.info("The detector analyzes all active shipments and calculates real distances between destinations.")
- 
+
     if st.button("Detect opportunities"):
         with st.spinner("Analyzing active shipments..."):
             st.session_state["consolidaciones"] = detectar_consolidaciones()
- 
+
     if "consolidaciones" in st.session_state:
         oportunidades = st.session_state["consolidaciones"]
         if oportunidades:
@@ -384,12 +384,12 @@ elif pagina == "Consolidations":
                     st.markdown(f"**Suggested trailer:** {op['trailer_sugerido']}")
         else:
             st.warning("No consolidation opportunities detected with current active shipments.")
- 
+
 # ── TRUCK BUILDER ─────────────────────────
 elif pagina == "Truck Builder":
     st.title("Truck Builder")
     st.markdown("---")
- 
+
     BUNDLES = {
         "1/2": {"10": {"w":30,"h":16,"l":127}, "20": None},
         "3/4": {"10": {"w":38,"h":15,"l":126}, "20": None},
@@ -405,21 +405,21 @@ elif pagina == "Truck Builder":
         "6":   {"10": {"w":42,"h":32,"l":141}, "20": {"w":42,"h":32,"l":282}},
         "8":   {"10": {"w":40,"h":31,"l":135}, "20": {"w":40,"h":31,"l":270}},
     }
- 
+
     COLORS = {
         "1/2":"#7F77DD","3/4":"#534AB7","1":"#1D9E75","1-1/4":"#0F6E56",
         "1-1/2":"#D85A30","2":"#993C1D","2-1/2":"#D4537E","3":"#993556",
         "3-1/2":"#378ADD","4":"#185FA5","5":"#BA7517","6":"#854F0B","8":"#639922"
     }
- 
+
     ROWS, COLS = 4, 6
     TRAILER_W, TRAILER_L, DECK_H, LEGAL_H = 102, 576, 60, 162
- 
+
     if "tb_grid" not in st.session_state:
         st.session_state.tb_grid = [[None]*COLS for _ in range(ROWS)]
     if "tb_sel" not in st.session_state:
         st.session_state.tb_sel = None
- 
+
     col1, col2, col3 = st.columns([2, 2, 1])
     with col1:
         size_sel = st.selectbox("Pipe size", [s + '"' for s in BUNDLES.keys()])
@@ -433,35 +433,35 @@ elif pagina == "Truck Builder":
             st.session_state.tb_grid = [[None]*COLS for _ in range(ROWS)]
             st.session_state.tb_sel = None
             st.rerun()
- 
+
     b_data = BUNDLES[size_key][len_sel]
     grid = st.session_state.tb_grid
     sel = st.session_state.tb_sel
- 
+
     if sel:
         st.info(f"Bundle selected: {grid[sel[0]][sel[1]]['size']}\" {grid[sel[0]][sel[1]]['len']}ft — click another cell to move it")
     else:
         st.caption("Click empty cell to place bundle. Click filled cell to select it, then click another cell to move it.")
- 
+
     st.markdown("---")
- 
+
     # FRONT labels
     hcols = st.columns([0.4] + [1]*6 + [0.4])
     hcols[1].markdown("<center><b style='font-size:12px;color:#666'>FRONT</b></center>", unsafe_allow_html=True)
     hcols[4].markdown("<center><b style='font-size:12px;color:#666'>FRONT</b></center>", unsafe_allow_html=True)
- 
+
     changed = False
     for r in range(ROWS):
         rcols = st.columns([0.4] + [1]*6 + [0.4])
         if r == 1:
             rcols[0].markdown("<div style='font-size:11px;color:#666;font-weight:600;text-align:center;padding-top:20px'>LEFT<br>SIDE</div>", unsafe_allow_html=True)
             rcols[7].markdown("<div style='font-size:11px;color:#666;font-weight:600;text-align:center;padding-top:20px'>RIGHT<br>SIDE</div>", unsafe_allow_html=True)
- 
+
         for c in range(COLS):
             cell = grid[r][c]
             is_sel = sel == (r, c)
             col = rcols[c + 1]
- 
+
             if cell:
                 clr = COLORS.get(cell['size'], '#378ADD')
                 if is_sel:
@@ -479,8 +479,8 @@ elif pagina == "Truck Builder":
                 if c == 2:
                     style += ";border-right:4px solid #222"
                 col.markdown("<div style='" + style + "'>·</div>", unsafe_allow_html=True)
- 
-            if col.button(btn_label, key="g_" + str(r) + "_" + str(c), use_container_width=True):
+
+            if col.button("select", key="g_" + str(r) + "_" + str(c), label_visibility="collapsed"):
                 if sel is None:
                     if cell:
                         st.session_state.tb_sel = (r, c)
@@ -499,12 +499,12 @@ elif pagina == "Truck Builder":
                         grid[r][c], grid[sr][sc] = grid[sr][sc], grid[r][c]
                         st.session_state.tb_sel = None
                 changed = True
- 
+
     if changed:
         st.rerun()
- 
+
     st.markdown("---")
- 
+
     total = sum(1 for r in range(ROWS) for c in range(COLS) if grid[r][c])
     col_heights = []
     for c in range(COLS):
@@ -518,22 +518,22 @@ elif pagina == "Truck Builder":
     inch = round(max_h % 12)
     left_w = sum(grid[r][c]["w"]*grid[r][c]["h"]*0.000284 for r in range(ROWS) for c in range(3) if grid[r][c])
     right_w = sum(grid[r][c]["w"]*grid[r][c]["h"]*0.000284 for r in range(ROWS) for c in range(3,6) if grid[r][c])
- 
+
     m1, m2, m3, m4, m5 = st.columns(5)
     m1.metric("Total bundles", total)
     m2.metric("Slots used", str(total) + " / " + str(ROWS*COLS))
     m3.metric("Max height", str(ft) + "'" + str(inch) + '"')
     m4.metric("Left weight", str(int(left_w)) + " lbs")
     m5.metric("Right weight", str(int(right_w)) + " lbs")
- 
+
     if max_h > LEGAL_H + DECK_H:
         st.error("Height exceeded — " + str(ft) + "'" + str(inch) + '" supera 13\'6"')
     elif total > 0:
         st.success("Load OK — " + str(ft) + "'" + str(inch) + '" altura, ' + str(ROWS*COLS - total) + " slots disponibles")
- 
+
     st.markdown("---")
     import plotly.graph_objects as go
- 
+
     def make_box(x0, x1, y0, y1, z0, z1, color):
         vx = [x0,x1,x1,x0,x0,x1,x1,x0]
         vy = [y0,y0,y1,y1,y0,y0,y1,y1]
@@ -542,13 +542,13 @@ elif pagina == "Truck Builder":
         j = [1,2,4,2,5,3,5,6,0,6,1,7]
         k = [2,3,5,5,6,7,6,7,7,7,2,3]
         return go.Mesh3d(x=vx, y=vy, z=vz, i=i, j=j, k=k, color=color, opacity=0.85, flatshading=True)
- 
+
     fig = go.Figure()
     fig.add_trace(make_box(0, TRAILER_L, -TRAILER_W/2, TRAILER_W/2, 0, DECK_H, "#aaaaaa"))
- 
+
     row_l = TRAILER_L / ROWS
     col_w = TRAILER_W / COLS
- 
+
     for r in range(ROWS):
         for c in range(COLS):
             s = grid[r][c]
@@ -560,7 +560,7 @@ elif pagina == "Truck Builder":
             y1 = y0 + col_w - 2
             clr = COLORS.get(s["size"], "#378ADD")
             fig.add_trace(make_box(x0, x1, y0, y1, DECK_H, DECK_H + s["h"], clr))
- 
+
     fig.update_layout(
         scene=dict(
             xaxis=dict(title="Length", range=[0, TRAILER_L]),
