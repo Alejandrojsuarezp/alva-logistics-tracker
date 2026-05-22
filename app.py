@@ -462,25 +462,16 @@ elif pagina == "Truck Builder":
             is_sel = sel == (r, c)
             col = rcols[c + 1]
 
-            if cell:
+           if cell:
                 clr = COLORS.get(cell['size'], '#378ADD')
                 if is_sel:
-                    style = "background-color:" + clr + ";color:white;border:3px solid gold;border-radius:8px;padding:8px;text-align:center;font-weight:700;font-size:15px;margin:2px;cursor:pointer"
+                    btn_label = "★ " + cell['size'] + '" ' + str(cell['len']) + "ft"
                 else:
-                    style = "background-color:" + clr + "22;color:" + clr + ";border:2px solid " + clr + ";border-radius:8px;padding:8px;text-align:center;font-weight:700;font-size:15px;margin:2px;cursor:pointer"
-                if c == 2:
-                    style += ";border-right:4px solid #222"
-                col.markdown("<div style='" + style + "'>" + cell['size'] + '"<br><span style=font-size:11px>' + str(cell['len']) + "ft</span></div>", unsafe_allow_html=True)
+                    btn_label = cell['size'] + '" ' + str(cell['len']) + "ft"
             else:
-                if is_sel:
-                    style = "background-color:#E1F5EE;border:2px dashed #1D9E75;border-radius:8px;padding:8px;text-align:center;color:#1D9E75;font-size:20px;margin:2px;cursor:pointer"
-                else:
-                    style = "background-color:#fafafa;border:2px dashed #ddd;border-radius:8px;padding:8px;text-align:center;color:#ddd;font-size:20px;margin:2px;cursor:pointer"
-                if c == 2:
-                    style += ";border-right:4px solid #222"
-                col.markdown("<div style='" + style + "'>·</div>", unsafe_allow_html=True)
+                btn_label = "·"
 
-            if col.button(".", key="g_" + str(r) + "_" + str(c)):
+            if col.button(btn_label, key="g_" + str(r) + "_" + str(c), use_container_width=True):
                 if sel is None:
                     if cell:
                         st.session_state.tb_sel = (r, c)
