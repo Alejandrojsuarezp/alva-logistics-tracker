@@ -566,19 +566,22 @@ function draw360(){
   // Deck
   drawBox3d(ctx,-TLh,-deckH,-TWh,TLh,0,TWh,'#888888','99');
 
-  // Bundles
+  // Bundles — with gaps between sections and between stacks
   const faces=[];
+  const GAP=4;
   for(let sec=0;sec<SECTIONS;sec++){
-    const x1=-TLh+sec*secL, x2=x1+secL-3;
+    const x1=-TLh+sec*secL+GAP/2, x2=-TLh+(sec+1)*secL-GAP/2;
     for(let side=0;side<2;side++){
-      let colH=deckH;
+      let stackH=0;
       for(let lv=0;lv<LEVELS;lv++){
         const s=grid[sec][lv][side];if(!s)continue;
-        const z1=side===0?0:-TWh, z2=side===0?TWh:0;
-        const y1=-(colH+s.h), y2=-colH;
+        // side 0=RIGHT (positive Z), side 1=LEFT (negative Z)
+        const z1=side===0?GAP/2:-TWh+GAP/2;
+        const z2=side===0?TWh-GAP/2:-GAP/2;
+        const y1=-(stackH+s.h)+GAP/2, y2=-stackH-GAP/2;
         const avg=project3d((x1+x2)/2,(y1+y2)/2,(z1+z2)/2);
         faces.push({x1,y1,z1,x2,y2,z2,col:COLORS[s.size],d:avg.d});
-        colH+=s.h;
+        stackH+=s.h;
       }
     }
   }
