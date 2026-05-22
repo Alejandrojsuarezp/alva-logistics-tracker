@@ -480,6 +480,17 @@ function drawSideView(cvId,side,sideColor,sideLabel){
   ctx.beginPath();ctx.moveTo(PAD-4,limY);ctx.lineTo(PAD+trailerLpx+4,limY);ctx.stroke();ctx.setLineDash([]);
   ctx.fillStyle='#E24B4A';ctx.font='9px sans-serif';ctx.fillText("13'6\"",PAD+trailerLpx+5,limY+4);
 
+  // 10'6" real cargo limit (orange) — only on Side View
+  if(cvId==='cv-side'){
+    const GROUND_TO_DECK=36;
+    const realCargoH=t.legal-GROUND_TO_DECK;
+    const cargoY=baseY-deckPx-realCargoH*sH;
+    ctx.strokeStyle='#BA7517';ctx.lineWidth=1.5;ctx.setLineDash([4,3]);
+    ctx.beginPath();ctx.moveTo(PAD-4,cargoY);ctx.lineTo(PAD+trailerLpx+4,cargoY);ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle='#BA7517';ctx.font='9px sans-serif';ctx.fillText("10'6\" cargo",PAD+trailerLpx+5,cargoY+4);
+  }
+
   // Section dividers
   for(let s=1;s<SECTIONS;s++){
     ctx.strokeStyle='#ddd';ctx.lineWidth=1;ctx.setLineDash([3,2]);
