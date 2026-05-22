@@ -406,21 +406,12 @@ elif pagina == "Truck Builder":
         "8":   {"10": {"w":40,"h":31,"l":135}, "20": {"w":40,"h":31,"l":270}},
     }
 
-    COLORS = {
-        "1/2":"#7F77DD","3/4":"#534AB7","1":"#1D9E75","1-1/4":"#0F6E56",
-        "1-1/2":"#D85A30","2":"#993C1D","2-1/2":"#D4537E","3":"#993556",
-        "3-1/2":"#378ADD","4":"#185FA5","5":"#BA7517","6":"#854F0B","8":"#639922"
-    }
+    TRAILER_W = 102
+    TRAILER_L = 576
+    DECK_H = 60
+    LEGAL_H = 162
 
-    ROWS, COLS = 4, 6
-    TRAILER_W, TRAILER_L, DECK_H, LEGAL_H = 102, 576, 60, 162
-
-    if "tb_grid" not in st.session_state:
-        st.session_state.tb_grid = [[None]*COLS for _ in range(ROWS)]
-    if "tb_sel" not in st.session_state:
-        st.session_state.tb_sel = None
-
-    col1, col2, col3 = st.columns([2, 2, 1])
+    col1, col2, col3 = st.columns(3)
     with col1:
         size_sel = st.selectbox("Pipe size", [s + '"' for s in BUNDLES.keys()])
         size_key = size_sel.replace('"', '')
@@ -428,138 +419,90 @@ elif pagina == "Truck Builder":
         available = [k for k, v in BUNDLES[size_key].items() if v is not None]
         len_sel = st.selectbox("Length", available, format_func=lambda x: x + " ft")
     with col3:
-        st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("Clear all"):
-            st.session_state.tb_grid = [[None]*COLS for _ in range(ROWS)]
-            st.session_state.tb_sel = None
-            st.rerun()
+        qty = st.number_input("Total bundles", min_value=1, max_value=200, value=24)
 
-    b_data = BUNDLES[size_key][len_sel]
-    grid = st.session_state.tb_grid
-    sel = st.session_state.tb_sel
+    b = BUNDLES[size_key][len_sel]
+    bw, bh, bl = b["w"], b["h"], b["l"]
 
-    if sel:
-        st.info(f"Bundle selected: {grid[sel[0]][sel[1]]['size']}\" {grid[sel[0]][sel[1]]['len']}ft — click another cell to move it")
-    else:
-        st.caption("Click empty cell to place bundle. Click filled cell to select it, then click another cell to move it.")
-
-    st.markdown("---")
-
-    # FRONT labels
-    hcols = st.columns([0.4] + [1]*6 + [0.4])
-    hcols[1].markdown("<center><b style='font-size:12px;color:#666'>FRONT</b></center>", unsafe_allow_html=True)
-    hcols[4].markdown("<center><b style='font-size:12px;color:#666'>FRONT</b></center>", unsafe_allow_html=True)
-
-    changed = False
-    for r in range(ROWS):
-        rcols = st.columns([0.4] + [1]*6 + [0.4])
-        if r == 1:
-            rcols[0].markdown("<div style='font-size:11px;color:#666;font-weight:600;text-align:center;padding-top:20px'>LEFT<br>SIDE</div>", unsafe_allow_html=True)
-            rcols[7].markdown("<div style='font-size:11px;color:#666;font-weight:600;text-align:center;padding-top:20px'>RIGHT<br>SIDE</div>", unsafe_allow_html=True)
-
-        for c in range(COLS):
-            cell = grid[r][c]
-            is_sel = sel == (r, c)
-            col = rcols[c + 1]
-
-            if cell:
-                if is_sel:
-                    btn_label = '>> ' + cell['size'] + '"' + ' ' + str(cell['len']) + 'ft <<'
-                else:
-                    btn_label = cell['size'] + '"' + ' ' + str(cell['len']) + 'ft'
-            else:
-                btn_label = '[ ]'
-            if col.button(btn_label, key='g_' + str(r) + '_' + str(c), use_container_width=True):
-                if sel is None:
-                    if cell:
-                        st.session_state.tb_sel = (r, c)
-                    else:
-                        grid[r][c] = {"size": size_key, "len": int(len_sel), "w": b_data["w"], "h": b_data["h"], "l": b_data["l"]}
-                        st.session_state.tb_sel = None
-                else:
-                    sr, sc = sel
-                    if (r, c) == sel:
-                        st.session_state.tb_sel = None
-                    elif cell is None:
-                        grid[r][c] = grid[sr][sc]
-                        grid[sr][sc] = None
-                        st.session_state.tb_sel = None
-                    else:
-                        grid[r][c], grid[sr][sc] = grid[sr][sc], grid[r][c]
-                        st.session_state.tb_sel = None
-                changed = True
-
-    if changed:
-        st.rerun()
+    bundles_wide = max(1, TRAILER_W // bw)
+    avail_h = LEGAL_H
+    bundles_high = max(1, avail_h // bh)
+    bundles_per_group = bundles_wide * bundles_high
+    num_groups = -(-qty // bundles_per_group)
+    total_length = num_groups * bl
+    total_height = DECK_H + bundles_high * bh
+    ft = int(total_height // 12)
+    inch = round(total_height % 12)
 
     st.markdown("---")
-
-    total = sum(1 for r in range(ROWS) for c in range(COLS) if grid[r][c])
-    col_heights = []
-    for c in range(COLS):
-        h = DECK_H
-        for r in range(ROWS):
-            if grid[r][c]:
-                h += grid[r][c]["h"]
-        col_heights.append(h)
-    max_h = max(col_heights)
-    ft = int(max_h // 12)
-    inch = round(max_h % 12)
-    left_w = sum(grid[r][c]["w"]*grid[r][c]["h"]*0.000284 for r in range(ROWS) for c in range(3) if grid[r][c])
-    right_w = sum(grid[r][c]["w"]*grid[r][c]["h"]*0.000284 for r in range(ROWS) for c in range(3,6) if grid[r][c])
-
     m1, m2, m3, m4, m5 = st.columns(5)
-    m1.metric("Total bundles", total)
-    m2.metric("Slots used", str(total) + " / " + str(ROWS*COLS))
-    m3.metric("Max height", str(ft) + "'" + str(inch) + '"')
-    m4.metric("Left weight", str(int(left_w)) + " lbs")
-    m5.metric("Right weight", str(int(right_w)) + " lbs")
+    m1.metric("Bundles wide", bundles_wide)
+    m2.metric("Bundles high", bundles_high)
+    m3.metric("Groups along", num_groups)
+    m4.metric("Total height", str(ft) + "'" + str(inch) + '"')
+    m5.metric("Length used", str(round(total_length/12)) + " ft / 48 ft")
 
-    if max_h > LEGAL_H + DECK_H:
+    if total_height > LEGAL_H + DECK_H:
         st.error("Height exceeded — " + str(ft) + "'" + str(inch) + '" supera 13\'6"')
-    elif total > 0:
-        st.success("Load OK — " + str(ft) + "'" + str(inch) + '" altura, ' + str(ROWS*COLS - total) + " slots disponibles")
+    elif total_length > TRAILER_L:
+        st.warning("Length exceeded — necesita " + str(round(total_length/12)) + "ft, trailer es 48ft")
+    else:
+        st.success("Load fits — " + str(ft) + "'" + str(inch) + '" altura, ' + str(round(total_length/12)) + "ft de largo")
 
     st.markdown("---")
+
     import plotly.graph_objects as go
 
-    def make_box(x0, x1, y0, y1, z0, z1, color):
+    def make_box(x0, x1, y0, y1, z0, z1, color, opacity=0.85):
         vx = [x0,x1,x1,x0,x0,x1,x1,x0]
         vy = [y0,y0,y1,y1,y0,y0,y1,y1]
         vz = [z0,z0,z0,z0,z1,z1,z1,z1]
         i = [0,0,0,1,1,2,4,4,4,5,5,6]
         j = [1,2,4,2,5,3,5,6,0,6,1,7]
         k = [2,3,5,5,6,7,6,7,7,7,2,3]
-        return go.Mesh3d(x=vx, y=vy, z=vz, i=i, j=j, k=k, color=color, opacity=0.85, flatshading=True)
+        return go.Mesh3d(x=vx,y=vy,z=vz,i=i,j=j,k=k,color=color,opacity=opacity,flatshading=True)
 
     fig = go.Figure()
-    fig.add_trace(make_box(0, TRAILER_L, -TRAILER_W/2, TRAILER_W/2, 0, DECK_H, "#aaaaaa"))
 
-    row_l = TRAILER_L / ROWS
-    col_w = TRAILER_W / COLS
+    # Trailer deck
+    fig.add_trace(make_box(0, TRAILER_L, -TRAILER_W/2, TRAILER_W/2, 0, DECK_H, "#888888", 0.5))
 
-    for r in range(ROWS):
-        for c in range(COLS):
-            s = grid[r][c]
-            if not s:
-                continue
-            x0 = r * row_l
-            x1 = x0 + row_l - 2
-            y0 = -TRAILER_W/2 + c * col_w
-            y1 = y0 + col_w - 2
-            clr = COLORS.get(s["size"], "#378ADD")
-            fig.add_trace(make_box(x0, x1, y0, y1, DECK_H, DECK_H + s["h"], clr))
+    # Draw bundles as solid blocks per group
+    bundles_left = qty
+    for g in range(num_groups):
+        if bundles_left <= 0:
+            break
+        x0 = g * bl
+        x1 = x0 + bl - 2
+        bundles_this_group = min(bundles_per_group, bundles_left)
+        rows_this_group = -(-bundles_this_group // bundles_wide)
+        for row in range(rows_this_group):
+            bundles_in_row = min(bundles_wide, bundles_this_group - row * bundles_wide)
+            if bundles_in_row <= 0:
+                break
+            y0 = -TRAILER_W/2
+            y1 = y0 + bundles_in_row * bw
+            z0 = DECK_H + row * bh
+            z1 = z0 + bh
+            fig.add_trace(make_box(x0, x1, y0, y1, z0, z1, "#185FA5"))
+        bundles_left -= bundles_this_group
+
+    # Legal height line
+    fig.add_trace(go.Scatter3d(
+        x=[0, TRAILER_L], y=[0, 0], z=[LEGAL_H+DECK_H, LEGAL_H+DECK_H],
+        mode="lines", line=dict(color="red", width=3), name="13'6\" limit"
+    ))
 
     fig.update_layout(
         scene=dict(
-            xaxis=dict(title="Length", range=[0, TRAILER_L]),
-            yaxis=dict(title="Width", range=[-TRAILER_W/2, TRAILER_W/2]),
-            zaxis=dict(title="Height", range=[0, LEGAL_H+DECK_H]),
+            xaxis=dict(title="Length (in)", range=[0, TRAILER_L]),
+            yaxis=dict(title="Width (in)", range=[-TRAILER_W/2, TRAILER_W/2]),
+            zaxis=dict(title="Height (in)", range=[0, LEGAL_H+DECK_H+20]),
             aspectmode="data",
-            camera=dict(eye=dict(x=1.5, y=1.5, z=1))
+            camera=dict(eye=dict(x=1.8, y=1.8, z=1.2))
         ),
         margin=dict(l=0, r=0, t=0, b=0),
-        height=500,
+        height=550,
         showlegend=False
     )
     st.plotly_chart(fig, use_container_width=True)
