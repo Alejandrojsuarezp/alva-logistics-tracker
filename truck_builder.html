@@ -493,14 +493,14 @@ function drawSideView(cvId,side,sideColor,sideLabel){
 
   for(let sec=0;sec<SECTIONS;sec++){
     const gX=PAD+sec*secL*sL;
-    let colH=deckH;
+    let stackH=0;
     for(let lv=0;lv<LEVELS;lv++){
       const s=grid[sec][lv][side];if(!s)continue;
       const bH=s.h*sH,bW=secL*sL-2;
-      const bY=baseY-deckPx-colH*sH-bH;
+      const bY=baseY-deckPx-stackH*sH-bH;
       ctx.fillStyle=COLORS[s.size]+'cc';ctx.fillRect(gX+1,bY,bW,bH-1);
       ctx.strokeStyle=COLORS[s.size];ctx.lineWidth=0.5;ctx.strokeRect(gX+1,bY,bW,bH-1);
-      colH+=s.h;
+      stackH+=s.h;
     }
   }
 
