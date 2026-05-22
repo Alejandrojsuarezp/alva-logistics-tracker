@@ -624,13 +624,21 @@ function draw360(){
     drawBox3d(ctx,-TLh,-deckH,-TWh,TLh,0,TWh,'#888888','99');
   }
 
-  // Bundles — correct deck height per section
+  // Bundles — use real bundle length for positioning
   const faces=[];
   const GAP=4;
   for(let sec=0;sec<SECTIONS;sec++){
-    const x1=-TLh+sec*secL+GAP/2, x2=-TLh+(sec+1)*secL-GAP/2;
-    // Determine which deck this section is on (for stepdeck)
-    const secMidX=-TLh+sec*secL+secL/2;
+    // Get bundle length for this section
+    let bundleL=secL;
+    for(let lv=0;lv<LEVELS;lv++){
+      for(let sd=0;sd<2;sd++){
+        if(grid[sec][lv][sd]){bundleL=grid[sec][lv][sd].l;break;}
+      }
+    }
+    const x1=-TLh+sec*bundleL+GAP/2;
+    const x2=x1+bundleL-GAP;
+    // Determine deck height (stepdeck)
+    const secMidX=-TLh+sec*bundleL+bundleL/2;
     let secDeckH=deckH;
     if(t.type==='stepdeck'){
       secDeckH = secMidX < (-TLh+UPPER_L) ? t.deckHigh : t.deckLow;
@@ -643,12 +651,12 @@ function draw360(){
         const z2=side===0?TWh-GAP/2:-GAP/2;
         const y1=-(secDeckH+stackH+s.h)+GAP/2, y2=-(secDeckH+stackH)-GAP/2;
         const avg=project3d((x1+x2)/2,(y1+y2)/2,(z1+z2)/2);
-        faces.push({x1,y1,z1,x2,y2,z2,col:COLORS[s.size],d:avg.d});
+        faces.push({x1,y1,z1,x2,y2,z2,col:COLORS[s.size],d:avg.d,overflow:x2>TLh});
         stackH+=s.h;
       }
     }
   }
-  faces.sort((a,b)=>b.d-a.d).forEach(f=>drawBox3d(ctx,f.x1,f.y1,f.z1,f.x2,f.y2,f.z2,f.col,'ee'));
+  faces.sort((a,b)=>b.d-a.d).forEach(f=>drawBox3d(ctx,f.x1,f.y1,f.z1,f.x2,f.y2,f.z2,f.overflow?'#E24B4A':f.col,f.overflow?'55':'ee'));
 
   // Legal limit planes in 3D
   const GROUND_TO_DECK_3D=36;
