@@ -134,7 +134,7 @@ canvas{display:block;width:100%;}
         <span style="font-size:11px;color:#999;">BACK →</span>
       </div>
       <div id="tgrid-wrap"></div>
-      <div class="grid-labels"><span>RIGHT SIDE</span><span>LEFT SIDE</span></div>
+    
     </div>
 
     <!-- FRONT + SIDE VIEWS -->
@@ -268,52 +268,45 @@ function buildTGrid(){
   const wrap = document.getElementById('tgrid-wrap');
   wrap.innerHTML = '';
 
-  // Section headers
   const secHeader = '<div style="display:flex;margin-left:34px;margin-bottom:2px;">' +
     Array.from({length:SECTIONS},(_,i)=>`<div style="flex:1;text-align:center;font-size:10px;color:#999;">S${i+1}</div>`).join('') +
     '</div>';
 
-  // RIGHT SIDE — L4 at top (edge), L1 at bottom (closest to center)
+  function renderRow(lv, side){
+    let html = `<div style="display:flex;align-items:center;margin-bottom:2px;">
+      <div style="width:30px;font-size:10px;color:#999;font-weight:600;text-align:right;padding-right:6px;">L${lv+1}</div>`;
+    let sec=0;
+    while(sec<SECTIONS){
+      const s = grid[sec][lv][side];
+      if(s && s.span){
+        const color = COLORS[s.size]||'#185FA5';
+        html += `<div onclick="toggleCell(${sec},${lv},${side})" style="flex:2;margin:1px;height:44px;border:2px solid ${color};background:${color}22;border-radius:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;font-size:11px;font-weight:700;color:${color};">
+          ${s.size}"<span style="font-size:9px;font-weight:400;">${s.len}ft</span></div>`;
+        sec+=2;
+      } else if(s && s.paired){
+        sec++;
+      } else if(s){
+        const color = COLORS[s.size]||'#185FA5';
+        html += `<div onclick="toggleCell(${sec},${lv},${side})" style="flex:1;margin:1px;height:44px;border:2px solid ${color};background:${color}22;border-radius:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;font-size:11px;font-weight:700;color:${color};">
+          ${s.size}"<span style="font-size:9px;font-weight:400;">${s.len}ft</span></div>`;
+        sec++;
+      } else {
+        html += `<div onclick="toggleCell(${sec},${lv},${side})" style="flex:1;margin:1px;height:44px;border:2px dashed #ddd;border-radius:4px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#ccc;font-size:18px;">+</div>`;
+        sec++;
+      }
+    }
+    html += '</div>';
+    return html;
+  }
+
   let rightHTML = '<div style="font-size:11px;text-align:center;color:#185FA5;font-weight:600;padding:4px;background:#f0f6ff;border-bottom:1px solid #ddd;border-radius:6px 6px 0 0;">RIGHT SIDE</div>';
   rightHTML += secHeader;
-  for(let lv=LEVELS-1; lv>=0; lv--){
-    rightHTML += `<div style="display:flex;align-items:center;margin-bottom:2px;">
-      <div style="width:30px;font-size:10px;color:#999;font-weight:600;text-align:right;padding-right:6px;">L${lv+1}</div>`;
-    for(let sec=0; sec<SECTIONS; sec++){
-      const s = grid[sec][lv][0];
-      const id = `cell-${sec}-${lv}-0`;
-      if(s){
-        const color = COLORS[s.size]||'#185FA5';
-        rightHTML += `<div id="${id}" onclick="toggleCell(${sec},${lv},0)" style="flex:1;margin:1px;height:44px;border:2px solid ${color};background:${color}22;border-radius:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;font-size:11px;font-weight:700;color:${color};">
-          ${s.size}"<span style="font-size:9px;font-weight:400;">${s.len}ft</span></div>`;
-      } else {
-        rightHTML += `<div id="${id}" onclick="toggleCell(${sec},${lv},0)" style="flex:1;margin:1px;height:44px;border:2px dashed #ddd;border-radius:4px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#ccc;font-size:18px;">+</div>`;
-      }
-    }
-    rightHTML += '</div>';
-  }
+  for(let lv=LEVELS-1; lv>=0; lv--) rightHTML += renderRow(lv, 0);
 
-  // CENTER LINE
   const centerLine = '<div style="height:3px;background:#333;margin:4px 0;"></div>';
 
-  // LEFT SIDE — L1 at top (closest to center), L4 at bottom (edge)
   let leftHTML = '';
-  for(let lv=0; lv<LEVELS; lv++){
-    leftHTML += `<div style="display:flex;align-items:center;margin-bottom:2px;">
-      <div style="width:30px;font-size:10px;color:#999;font-weight:600;text-align:right;padding-right:6px;">L${lv+1}</div>`;
-    for(let sec=0; sec<SECTIONS; sec++){
-      const s = grid[sec][lv][1];
-      const id = `cell-${sec}-${lv}-1`;
-      if(s){
-        const color = COLORS[s.size]||'#0F6E56';
-        leftHTML += `<div id="${id}" onclick="toggleCell(${sec},${lv},1)" style="flex:1;margin:1px;height:44px;border:2px solid ${color};background:${color}22;border-radius:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;font-size:11px;font-weight:700;color:${color};">
-          ${s.size}"<span style="font-size:9px;font-weight:400;">${s.len}ft</span></div>`;
-      } else {
-        leftHTML += `<div id="${id}" onclick="toggleCell(${sec},${lv},1)" style="flex:1;margin:1px;height:44px;border:2px dashed #ddd;border-radius:4px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#ccc;font-size:18px;">+</div>`;
-      }
-    }
-    leftHTML += '</div>';
-  }
+  for(let lv=0; lv<LEVELS; lv++) leftHTML += renderRow(lv, 1);
   leftHTML += '<div style="font-size:11px;text-align:center;color:#0F6E56;font-weight:600;padding:4px;background:#e1f5ee;border-top:1px solid #ddd;border-radius:0 0 6px 6px;">LEFT SIDE</div>';
 
   wrap.innerHTML = `<div style="border:2px solid #ccc;border-radius:6px;overflow:hidden;padding:8px;">
@@ -322,13 +315,26 @@ function buildTGrid(){
 }
 
 function toggleCell(sec, lv, side){
+  const size = document.getElementById('sel-size').value;
+  const len = parseInt(document.getElementById('sel-len').value);
+  const b = BUNDLES[size][len];
+
+  // If cell is filled, remove it
   if(grid[sec][lv][side]){
-    grid[sec][lv][side] = null;
+    const s = grid[sec][lv][side];
+    if(s.span && sec+1<SECTIONS){ grid[sec+1][lv][side]=null; }
+    if(s.paired && sec>0){ grid[sec-1][lv][side]=null; }
+    grid[sec][lv][side]=null;
   } else {
-    const size = document.getElementById('sel-size').value;
-    const len = parseInt(document.getElementById('sel-len').value);
-    const b = BUNDLES[size][len];
-    if(b) grid[sec][lv][side] = {size,len,w:b.w,h:b.h,l:b.l};
+    if(!b) return;
+    if(len===20){
+      if(sec+1>=SECTIONS){ return; } // no room
+      if(grid[sec+1][lv][side]) return; // next occupied
+      grid[sec][lv][side]={size,len,w:b.w,h:b.h,l:b.l,span:true};
+      grid[sec+1][lv][side]={size,len,w:b.w,h:b.h,l:b.l,paired:true};
+    } else {
+      grid[sec][lv][side]={size,len,w:b.w,h:b.h,l:b.l};
+    }
   }
   buildTGrid();
   update();
