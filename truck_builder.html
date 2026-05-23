@@ -512,17 +512,27 @@ function drawSideView(cvId,side,sideColor,sideLabel){
     ctx.setLineDash([]);
   }
 
+  let xOff=0;
   for(let sec=0;sec<SECTIONS;sec++){
-    // Get first bundle in this section to determine length and position
+    // Skip sections that are purely paired
+    let allPaired=true;
+    for(let lv=0;lv<LEVELS;lv++){
+      const s=grid[sec][lv][side];
+      if(!s || !s.paired){allPaired=false;break;}
+    }
+    if(allPaired) continue;
+
+    // Get first non-paired bundle to determine length
     let firstBundle=null;
     for(let lv=0;lv<LEVELS;lv++){
       const s=grid[sec][lv][side];
       if(s && !s.paired){firstBundle=s;break;}
     }
-    if(!firstBundle) continue;
+    if(!firstBundle){xOff+=0;continue;}
 
     const bW=firstBundle.l*sL;
-    const gX=PAD+sec*firstBundle.l*sL;
+    const gX=PAD+xOff*sL;
+    xOff+=firstBundle.l;
     let stackH=0;
 
     // Draw ALL levels stacked vertically for this section
