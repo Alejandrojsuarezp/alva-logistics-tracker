@@ -513,22 +513,31 @@ function drawSideView(cvId,side,sideColor,sideLabel){
   }
 
   for(let sec=0;sec<SECTIONS;sec++){
-    // Use real bundle length, not section length
-    let stackH=0;
+    // Get first bundle in this section to determine length and position
+    let firstBundle=null;
     for(let lv=0;lv<LEVELS;lv++){
-      const s=grid[sec][lv][side];if(!s)continue;
+      const s=grid[sec][lv][side];
+      if(s && !s.paired){firstBundle=s;break;}
+    }
+    if(!firstBundle) continue;
+
+    const bW=firstBundle.l*sL;
+    const gX=PAD+sec*firstBundle.l*sL;
+    let stackH=0;
+
+    // Draw ALL levels stacked vertically for this section
+    for(let lv=0;lv<LEVELS;lv++){
+      const s=grid[sec][lv][side];
+      if(!s || s.paired) continue;
       const bH=s.h*sH;
-      const bW=s.l*sL; // real bundle length scaled
-      const gX=PAD+sec*s.l*sL; // position based on real bundle length
       const bY=baseY-deckPx-stackH*sH-bH;
-      // Check if bundle overflows trailer
       const overflows=gX+bW>PAD+trailerLpx;
       if(overflows){
-        // Draw portion inside trailer
-        const insideW=PAD+trailerLpx-gX;
-        ctx.fillStyle=COLORS[s.size]+'99';ctx.fillRect(gX,bY,insideW,bH-1);
-        ctx.strokeStyle=COLORS[s.size];ctx.lineWidth=0.5;ctx.strokeRect(gX,bY,insideW,bH-1);
-        // Draw overflow portion in red
+        const insideW=Math.max(0,PAD+trailerLpx-gX);
+        if(insideW>0){
+          ctx.fillStyle=COLORS[s.size]+'99';ctx.fillRect(gX,bY,insideW,bH-1);
+          ctx.strokeStyle=COLORS[s.size];ctx.lineWidth=0.5;ctx.strokeRect(gX,bY,insideW,bH-1);
+        }
         ctx.fillStyle='#E24B4A33';ctx.fillRect(PAD+trailerLpx,bY,bW-insideW,bH-1);
         ctx.strokeStyle='#E24B4A';ctx.lineWidth=0.5;ctx.setLineDash([3,2]);
         ctx.strokeRect(PAD+trailerLpx,bY,bW-insideW,bH-1);
@@ -538,7 +547,6 @@ function drawSideView(cvId,side,sideColor,sideLabel){
         ctx.strokeStyle=COLORS[s.size];ctx.lineWidth=0.5;ctx.strokeRect(gX,bY,bW-1,bH-1);
       }
       stackH+=s.h;
-      break; // only first bundle per section for side view
     }
   }
 
