@@ -364,7 +364,7 @@ function getStats(){
       let colH = deckH;
       for(let lv=0;lv<LEVELS;lv++){
         const s = grid[sec][lv][side];
-        if(s){
+        if(s && !s.paired){
           total++;
           colH += s.h;
           if(side===0) rightCount++; else leftCount++;
@@ -555,6 +555,14 @@ function drawSideView(cvId,side,sideColor,sideLabel){
       } else {
         ctx.fillStyle=COLORS[s.size]+'cc';ctx.fillRect(gX,bY,bW-1,bH-1);
         ctx.strokeStyle=COLORS[s.size];ctx.lineWidth=0.5;ctx.strokeRect(gX,bY,bW-1,bH-1);
+        // Label inside bundle
+        ctx.save();
+        ctx.fillStyle='rgba(255,255,255,0.95)';
+        ctx.font='bold 9px sans-serif';
+        ctx.textAlign='center';
+        ctx.textBaseline='middle';
+        ctx.fillText(s.size+'" '+s.len+'ft', gX+(bW-1)/2, bY+bH/2);
+        ctx.restore();
       }
       stackH+=s.h;
     }
@@ -614,7 +622,7 @@ function project3d(x,y,z){
   return{px:cx+x2*d*scale3d,py:cy+y2*d*scale3d,d:z3};
 }
 
-function drawBox3d(ctx,x1,y1,z1,x2,y2,z2,col,alpha){
+function drawBox3d(ctx,x1,y1,z1,x2,y2,z2,col,alpha,label){
   const corners=[[x1,y1,z1],[x2,y1,z1],[x2,y2,z1],[x1,y2,z1],[x1,y1,z2],[x2,y1,z2],[x2,y2,z2],[x1,y2,z2]].map(([x,y,z])=>project3d(x,y,z));
   [[0,1,2,3],[4,5,6,7],[0,1,5,4],[2,3,7,6],[0,3,7,4],[1,2,6,5]]
     .map(idx=>({idx,d:idx.reduce((s,i)=>s+corners[i].d,0)/4}))
@@ -624,6 +632,17 @@ function drawBox3d(ctx,x1,y1,z1,x2,y2,z2,col,alpha){
       ctx.closePath();ctx.fillStyle=col+(alpha||'cc');ctx.fill();
       ctx.strokeStyle=col+'55';ctx.lineWidth=0.5;ctx.stroke();
     });
+  if(label){
+    const cx2=(corners[0].px+corners[1].px+corners[2].px+corners[3].px)/4;
+    const cy2=(corners[0].py+corners[1].py+corners[2].py+corners[3].py)/4;
+    ctx.save();
+    ctx.fillStyle='rgba(255,255,255,0.95)';
+    ctx.font='bold 9px sans-serif';
+    ctx.textAlign='center';
+    ctx.textBaseline='middle';
+    ctx.fillText(label,cx2,cy2);
+    ctx.restore();
+  }
 }
 
 function draw360(){
@@ -690,12 +709,12 @@ function draw360(){
         const z2=side===0?TWh-GAP/2:-GAP/2;
         const y1=-(secDeckH+stackH+s.h)+GAP/2, y2=-(secDeckH+stackH)-GAP/2;
         const avg=project3d((x1+x2)/2,(y1+y2)/2,(z1+z2)/2);
-        faces.push({x1,y1,z1,x2,y2,z2,col:COLORS[s.size],d:avg.d,overflow:x2>TLh});
+        faces.push({x1,y1,z1,x2,y2,z2,col:COLORS[s.size],d:avg.d,overflow:x2>TLh,label:s.size+'" '+s.len+'ft'});
         stackH+=s.h;
       }
     }
   }
-  faces.sort((a,b)=>b.d-a.d).forEach(f=>drawBox3d(ctx,f.x1,f.y1,f.z1,f.x2,f.y2,f.z2,f.overflow?'#E24B4A':f.col,f.overflow?'55':'ee'));
+  faces.sort((a,b)=>b.d-a.d).forEach(f=>drawBox3d(ctx,f.x1,f.y1,f.z1,f.x2,f.y2,f.z2,f.overflow?'#E24B4A':f.col,f.overflow?'55':'ee',f.overflow?null:f.label));
 
   // Legal limit planes in 3D
   const GROUND_TO_DECK_3D=36;
@@ -714,9 +733,32 @@ function draw360(){
     ctx.fillText(label,p2.px+4,p2.py);
   });
 
+  // Bundle labels in 3D
+  ctx.font='bold 10px sans-serif';ctx.textAlign='center';
+  let xOffLabel=0;
+  for(let sec=0;sec<SECTIONS;sec++){
+    let bundleL=secL, hasBundle=false, labelText='';
+    let allPairedL=true;
+    for(let lv=0;lv<LEVELS;lv++){
+      for(let sd=0;sd<2;sd++){
+        const s=grid[sec][lv][sd];
+        if(s && !s.paired){allPairedL=false; bundleL=s.l; hasBundle=true; labelText=s.size+'" '+s.len+'ft'; break;}
+      }
+      if(!allPairedL) break;
+    }
+    if(allPairedL) continue;
+    if(hasBundle){
+      const midX=-TLh+xOffLabel+bundleL/2;
+      const labelP=project3d(midX,-deckH-15,0);
+      ctx.fillStyle='#555';
+      ctx.fillText(labelText,labelP.px,labelP.py);
+    }
+    xOffLabel+=bundleL;
+  }
+
   // FRONT label
-  const fp=project3d(-TLh+secL/2,-deckH-10,0);
-  ctx.fillStyle='#555';ctx.font='12px sans-serif';ctx.textAlign='center';
+  const fp=project3d(-TLh+secL/2,-deckH-30,0);
+  ctx.fillStyle='#185FA5';ctx.font='bold 11px sans-serif';ctx.textAlign='center';
   ctx.fillText('FRONT',fp.px,fp.py);ctx.textAlign='left';
 }
 
