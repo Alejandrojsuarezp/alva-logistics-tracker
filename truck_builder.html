@@ -638,29 +638,44 @@ function draw360(){
     drawBox3d(ctx,-TLh,-deckH,-TWh,TLh,0,TWh,'#888888','99');
   }
 
-  // Bundles — use real bundle length for positioning
+  // Bundles — use real bundle length, stack all levels, skip paired
   const faces=[];
   const GAP=4;
+  // Calculate cumulative x position based on actual bundle lengths
+  let xOffset = -TLh;
   for(let sec=0;sec<SECTIONS;sec++){
-    // Get bundle length for this section
+    // Get first non-paired bundle to determine length
     let bundleL=secL;
+    let hasPaired=false;
     for(let lv=0;lv<LEVELS;lv++){
       for(let sd=0;sd<2;sd++){
-        if(grid[sec][lv][sd]){bundleL=grid[sec][lv][sd].l;break;}
+        const s=grid[sec][lv][sd];
+        if(s && s.paired){hasPaired=true;break;}
+        if(s && !s.paired){bundleL=s.l;break;}
       }
+      if(bundleL!==secL) break;
     }
-    const x1=-TLh+sec*bundleL+GAP/2;
+    // Skip sections that are purely paired (already rendered as part of span)
+    if(hasPaired && !grid[sec].some(lv=>lv.some(s=>s&&!s.paired))){
+      // this section is all paired — don't advance xOffset
+      continue;
+    }
+
+    const x1=xOffset+GAP/2;
     const x2=x1+bundleL-GAP;
-    // Determine deck height (stepdeck)
-    const secMidX=-TLh+sec*bundleL+bundleL/2;
+    xOffset+=bundleL;
+
+    const secMidX=(x1+x2)/2;
     let secDeckH=deckH;
     if(t.type==='stepdeck'){
       secDeckH = secMidX < (-TLh+UPPER_L) ? t.deckHigh : t.deckLow;
     }
+
     for(let side=0;side<2;side++){
       let stackH=0;
       for(let lv=0;lv<LEVELS;lv++){
-        const s=grid[sec][lv][side];if(!s)continue;
+        const s=grid[sec][lv][side];
+        if(!s || s.paired) continue;
         const z1=side===0?GAP/2:-TWh+GAP/2;
         const z2=side===0?TWh-GAP/2:-GAP/2;
         const y1=-(secDeckH+stackH+s.h)+GAP/2, y2=-(secDeckH+stackH)-GAP/2;
