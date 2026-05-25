@@ -573,6 +573,13 @@ function drawSideView(cvId,side,sideColor,sideLabel){
         ctx.textAlign='center'; ctx.textBaseline='middle';
         ctx.fillText(s.size+'" '+s.len+'ft', gX+(bW-1)/2, bY+bH/2);
         ctx.restore();
+        // White divider on right edge to separate adjacent bundles
+        ctx.strokeStyle='rgba(255,255,255,0.7)';
+        ctx.lineWidth=1.5;
+        ctx.beginPath();
+        ctx.moveTo(gX+bW-1, bY);
+        ctx.lineTo(gX+bW-1, bY+bH-1);
+        ctx.stroke();
       }
       stackH+=s.h;
     }
@@ -676,49 +683,58 @@ function draw360(){
     drawBox3d(ctx,-TLh,-deckH,-TWh,TLh,0,TWh,'#888888','99');
   }
 
-  // Bundles — use real bundle length, stack all levels, skip paired
+  // Bundles — build position map same as side views
   const faces=[];
   const GAP=4;
-  // Calculate cumulative x position based on actual bundle lengths
-  let xOffset = -TLh;
+
+  // Build cumulative x positions for each section
+  const sec3dPos=[];
+  let x3dAccum=-TLh;
   for(let sec=0;sec<SECTIONS;sec++){
-    // Get first non-paired bundle to determine length
-    let bundleL=secL;
+    // Check if any cell in this section is paired (across both sides)
     let hasPaired=false;
     for(let lv=0;lv<LEVELS;lv++){
       for(let sd=0;sd<2;sd++){
+        if(grid[sec][lv][sd]&&grid[sec][lv][sd].paired){hasPaired=true;break;}
+      }
+      if(hasPaired) break;
+    }
+    if(hasPaired){sec3dPos.push({skip:true});continue;}
+
+    // Get real bundle length for this section
+    let bundleL=secL;
+    for(let lv=0;lv<LEVELS;lv++){
+      for(let sd=0;sd<2;sd++){
         const s=grid[sec][lv][sd];
-        if(s && s.paired){hasPaired=true;break;}
-        if(s && !s.paired){bundleL=s.l;break;}
+        if(s&&!s.paired){bundleL=s.l;break;}
       }
       if(bundleL!==secL) break;
     }
-    // Skip sections that are purely paired (already rendered as part of span)
-    if(hasPaired && !grid[sec].some(lv=>lv.some(s=>s&&!s.paired))){
-      // this section is all paired — don't advance xOffset
-      continue;
-    }
-
-    const x1=xOffset+GAP/2;
+    const x1=x3dAccum+GAP/2;
     const x2=x1+bundleL-GAP;
-    xOffset+=bundleL;
+    sec3dPos.push({x1,x2,bundleL});
+    x3dAccum+=bundleL;
+  }
 
+  for(let sec=0;sec<SECTIONS;sec++){
+    const pos=sec3dPos[sec];
+    if(!pos||pos.skip) continue;
+    const {x1,x2}=pos;
     const secMidX=(x1+x2)/2;
     let secDeckH=deckH;
     if(t.type==='stepdeck'){
-      secDeckH = secMidX < (-TLh+UPPER_L) ? t.deckHigh : t.deckLow;
+      secDeckH=secMidX<(-TLh+UPPER_L)?t.deckHigh:t.deckLow;
     }
-
     for(let side=0;side<2;side++){
       let stackH=0;
       for(let lv=0;lv<LEVELS;lv++){
         const s=grid[sec][lv][side];
-        if(!s || s.paired) continue;
+        if(!s||s.paired) continue;
         const z1=side===0?GAP/2:-TWh+GAP/2;
         const z2=side===0?TWh-GAP/2:-GAP/2;
-        const y1=-(secDeckH+stackH+s.h)+GAP/2, y2=-(secDeckH+stackH)-GAP/2;
+        const y1=-(secDeckH+stackH+s.h)+GAP/2,y2=-(secDeckH+stackH)-GAP/2;
         const avg=project3d((x1+x2)/2,(y1+y2)/2,(z1+z2)/2);
-        faces.push({x1,y1,z1,x2,y2,z2,col:COLORS[s.size],d:avg.d,overflow:x2>TLh,label:s.size+'" '+s.len+'ft'});
+        faces.push({x1,y1,z1,x2,y2,z2,col:COLORS[s.size],d:avg.d,overflow:x2>TLh,label:s.size+'" '+s.len+'ft',isSpan:!!s.span});
         stackH+=s.h;
       }
     }
