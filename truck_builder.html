@@ -646,7 +646,7 @@ function drawBox3d(ctx,x1,y1,z1,x2,y2,z2,col,alpha,label){
     .forEach(({idx})=>{
       ctx.beginPath();idx.forEach((i,j)=>{j?ctx.lineTo(corners[i].px,corners[i].py):ctx.moveTo(corners[i].px,corners[i].py);});
       ctx.closePath();ctx.fillStyle=col+(alpha||'cc');ctx.fill();
-      ctx.strokeStyle=col+'55';ctx.lineWidth=0.5;ctx.stroke();
+      ctx.strokeStyle='rgba(255,255,255,0.4)';ctx.lineWidth=1;ctx.stroke();
     });
   if(label){
     const cx2=(corners[0].px+corners[1].px+corners[2].px+corners[3].px)/4;
