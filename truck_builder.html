@@ -512,26 +512,33 @@ function drawSideView(cvId,side,sideColor,sideLabel){
     ctx.setLineDash([]);
   }
 
-  // Draw each section with correct x position per level
-  // Key insight: x position depends on the bundle length AT EACH LEVEL independently
-  // A 20ft span in L1 doesn't affect x positions of 10ft bundles in L2
-  for(let lv=0;lv<LEVELS;lv++){
-    let xAccumLv = 0;
-    for(let sec=0;sec<SECTIONS;sec++){
+  // Draw bundles: iterate by section, calculate x using cumulative bundle lengths per section
+  // For each section, determine the x position based on the actual bundle lengths of all previous sections
+  // Build a position map: for each section, what is the cumulative x offset
+  const secXMap = []; // secXMap[sec] = x offset in inches from start of trailer
+  let cumX = 0;
+  for(let sec=0;sec<SECTIONS;sec++){
+    secXMap.push(cumX);
+    // Find the representative bundle length for this section (use shortest non-paired bundle)
+    let repL = null;
+    for(let lv=0;lv<LEVELS;lv++){
+      const s = grid[sec][lv][side];
+      if(s && !s.paired){
+        if(repL === null || s.l < repL) repL = s.l;
+      }
+    }
+    cumX += repL !== null ? repL : secL; // advance by real bundle length or default section length
+  }
+
+  for(let sec=0;sec<SECTIONS;sec++){
+    const gX = PAD + secXMap[sec]*sL;
+    let stackH = 0;
+    for(let lv=0;lv<LEVELS;lv++){
       const s = grid[sec][lv][side];
       if(!s || s.paired) continue;
       const bW = s.l*sL;
-      const gX = PAD + xAccumLv*sL;
-      xAccumLv += s.l;
-      const stackH = lv * (s.h); // approximate stack height by level index
-      // Calculate actual stack height from levels below
-      let actualStackH = 0;
-      for(let lvBelow=0;lvBelow<lv;lvBelow++){
-        const sBelow = grid[sec][lvBelow][side];
-        if(sBelow && !sBelow.paired) actualStackH += sBelow.h;
-      }
       const bH = s.h*sH;
-      const bY = baseY-deckPx-actualStackH*sH-bH;
+      const bY = baseY-deckPx-stackH*sH-bH;
       const overflows = gX+bW > PAD+trailerLpx;
       if(overflows){
         const insideW = Math.max(0, PAD+trailerLpx-gX);
@@ -551,7 +558,6 @@ function drawSideView(cvId,side,sideColor,sideLabel){
         ctx.textAlign='center'; ctx.textBaseline='middle';
         ctx.fillText(s.size+'" '+s.len+'ft', gX+(bW-1)/2, bY+bH/2);
         ctx.restore();
-        // White divider on right edge to separate adjacent bundles
         ctx.strokeStyle='rgba(255,255,255,0.7)';
         ctx.lineWidth=1.5;
         ctx.beginPath();
@@ -559,6 +565,7 @@ function drawSideView(cvId,side,sideColor,sideLabel){
         ctx.lineTo(gX+bW-1, bY+bH-1);
         ctx.stroke();
       }
+      stackH+=s.h;
     }
   }
 
@@ -693,23 +700,32 @@ function draw360(){
     x3dAccum+=bundleL;
   }
 
-  // Draw each level independently with correct x positions
-  for(let lv=0;lv<LEVELS;lv++){
+  // Build section x position map for 3D (same logic as side view)
+  const sec3dXMap = [];
+  let cum3dX = -TLh;
+  for(let sec=0;sec<SECTIONS;sec++){
+    sec3dXMap.push(cum3dX);
+    let repL3d = null;
+    for(let lv=0;lv<LEVELS;lv++){
+      for(let sd=0;sd<2;sd++){
+        const s=grid[sec][lv][sd];
+        if(s&&!s.paired){
+          if(repL3d===null||s.l<repL3d) repL3d=s.l;
+        }
+      }
+    }
+    cum3dX += repL3d!==null ? repL3d : secL;
+  }
+
+  for(let sec=0;sec<SECTIONS;sec++){
+    const secX1=sec3dXMap[sec];
     for(let side=0;side<2;side++){
-      let xLvAccum=-TLh;
-      for(let sec=0;sec<SECTIONS;sec++){
+      let stackH=0;
+      for(let lv=0;lv<LEVELS;lv++){
         const s=grid[sec][lv][side];
         if(!s||s.paired) continue;
-        const bL=s.l;
-        const x1=xLvAccum+GAP/2;
-        const x2=x1+bL-GAP;
-        xLvAccum+=bL;
-        // Calculate actual stack height from levels below
-        let actualStackH=0;
-        for(let lvBelow=0;lvBelow<lv;lvBelow++){
-          const sBelow=grid[sec][lvBelow][side];
-          if(sBelow&&!sBelow.paired) actualStackH+=sBelow.h;
-        }
+        const x1=secX1+GAP/2;
+        const x2=x1+s.l-GAP;
         const secMidX=(x1+x2)/2;
         let secDeckH=deckH;
         if(t.type==='stepdeck'){
@@ -717,9 +733,10 @@ function draw360(){
         }
         const z1=side===0?GAP/2:-TWh+GAP/2;
         const z2=side===0?TWh-GAP/2:-GAP/2;
-        const y1=-(secDeckH+actualStackH+s.h)+GAP/2,y2=-(secDeckH+actualStackH)-GAP/2;
+        const y1=-(secDeckH+stackH+s.h)+GAP/2,y2=-(secDeckH+stackH)-GAP/2;
         const avg=project3d((x1+x2)/2,(y1+y2)/2,(z1+z2)/2);
         faces.push({x1,y1,z1,x2,y2,z2,col:COLORS[s.size],d:avg.d,overflow:x2>TLh,label:s.size+'" '+s.len+'ft'});
+        stackH+=s.h;
       }
     }
   }
