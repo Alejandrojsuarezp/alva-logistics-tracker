@@ -532,10 +532,19 @@ function drawSideView(cvId,side,sideColor,sideLabel){
 
   for(let sec=0;sec<SECTIONS;sec++){
     const gX = PAD + secXMap[sec]*sL;
+    // Calculate initial stackH - if lower levels are paired, use height from span section
     let stackH = 0;
     for(let lv=0;lv<LEVELS;lv++){
       const s = grid[sec][lv][side];
-      if(!s || s.paired) continue;
+      if(s && s.paired){
+        // This level is part of a span from previous section - find its height
+        if(sec>0){
+          const spanS = grid[sec-1][lv][side];
+          if(spanS && spanS.span) stackH += spanS.h;
+        }
+        continue;
+      }
+      if(!s){ continue; }
       const bW = s.l*sL;
       const bH = s.h*sH;
       const bY = baseY-deckPx-stackH*sH-bH;
@@ -723,7 +732,15 @@ function draw360(){
       let stackH=0;
       for(let lv=0;lv<LEVELS;lv++){
         const s=grid[sec][lv][side];
-        if(!s||s.paired) continue;
+        if(s&&s.paired){
+          // Carry over height from span bundle in previous section
+          if(sec>0){
+            const spanS=grid[sec-1][lv][side];
+            if(spanS&&spanS.span) stackH+=spanS.h;
+          }
+          continue;
+        }
+        if(!s) continue;
         const x1=secX1+GAP/2;
         const x2=x1+s.l-GAP;
         const secMidX=(x1+x2)/2;
