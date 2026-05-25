@@ -518,8 +518,19 @@ function drawSideView(cvId,side,sideColor,sideLabel){
   const secXMap = []; // secXMap[sec] = x offset in inches from start of trailer
   let cumX = 0;
   for(let sec=0;sec<SECTIONS;sec++){
+    // Check if this section is ALL paired across ALL levels for this side
+    let allPairedThisSide = true;
+    for(let lv=0;lv<LEVELS;lv++){
+      const s = grid[sec][lv][side];
+      if(!s || !s.paired){ allPairedThisSide = false; break; }
+    }
+    if(allPairedThisSide){
+      // Don't push to secXMap and don't advance cumX - this section is part of a 20ft span
+      secXMap.push(null);
+      continue;
+    }
     secXMap.push(cumX);
-    // Find the representative bundle length for this section (use shortest non-paired bundle)
+    // Find the representative bundle length (shortest non-paired bundle in this section)
     let repL = null;
     for(let lv=0;lv<LEVELS;lv++){
       const s = grid[sec][lv][side];
@@ -527,10 +538,11 @@ function drawSideView(cvId,side,sideColor,sideLabel){
         if(repL === null || s.l < repL) repL = s.l;
       }
     }
-    cumX += repL !== null ? repL : secL; // advance by real bundle length or default section length
+    cumX += repL !== null ? repL : secL;
   }
 
   for(let sec=0;sec<SECTIONS;sec++){
+    if(secXMap[sec] === null) continue; // skip paired sections
     const gX = PAD + secXMap[sec]*sL;
     // Calculate initial stackH - if lower levels are paired, use height from span section
     let stackH = 0;
@@ -713,6 +725,19 @@ function draw360(){
   const sec3dXMap = [];
   let cum3dX = -TLh;
   for(let sec=0;sec<SECTIONS;sec++){
+    // Check if ALL cells in this section across both sides are paired
+    let allPaired3d = true;
+    for(let lv=0;lv<LEVELS;lv++){
+      for(let sd=0;sd<2;sd++){
+        const s=grid[sec][lv][sd];
+        if(!s||!s.paired){allPaired3d=false;break;}
+      }
+      if(!allPaired3d) break;
+    }
+    if(allPaired3d){
+      sec3dXMap.push(null);
+      continue;
+    }
     sec3dXMap.push(cum3dX);
     let repL3d = null;
     for(let lv=0;lv<LEVELS;lv++){
@@ -727,6 +752,7 @@ function draw360(){
   }
 
   for(let sec=0;sec<SECTIONS;sec++){
+    if(sec3dXMap[sec]===null) continue; // skip paired sections
     const secX1=sec3dXMap[sec];
     for(let side=0;side<2;side++){
       let stackH=0;
