@@ -512,55 +512,65 @@ function drawSideView(cvId,side,sideColor,sideLabel){
     ctx.setLineDash([]);
   }
 
-  let xOff=0;
+  // Build a map of section positions based on real bundle lengths
+  // Each section's x position is the sum of all previous sections' bundle lengths
+  const secPositions = []; // {gX, bW, bundleL} for each section
+  let xAccum = 0;
   for(let sec=0;sec<SECTIONS;sec++){
-    // Skip sections that are purely paired
-    let allPaired=true;
+    // Find the real bundle length for this section (use span bundle, skip paired)
+    let bundleL = null;
+    let isPaired = false;
     for(let lv=0;lv<LEVELS;lv++){
-      const s=grid[sec][lv][side];
-      if(!s || !s.paired){allPaired=false;break;}
+      const s = grid[sec][lv][side];
+      if(s && s.paired){ isPaired=true; break; }
+      if(s && s.span){ bundleL=s.l; break; }
+      if(s && !s.paired && !s.span){ bundleL=s.l; break; }
     }
-    if(allPaired) continue;
-
-    // Get first non-paired bundle to determine length
-    let firstBundle=null;
-    for(let lv=0;lv<LEVELS;lv++){
-      const s=grid[sec][lv][side];
-      if(s && !s.paired){firstBundle=s;break;}
+    if(isPaired){
+      secPositions.push({gX: null, bW: null, bundleL: null, skip: true});
+      continue;
     }
-    if(!firstBundle){xOff+=0;continue;}
+    if(bundleL === null){
+      // Empty section - use section width for spacing
+      secPositions.push({gX: PAD+xAccum*sL, bW: 0, bundleL: 0, empty: true});
+      // Don't advance xAccum for empty sections - use default section length
+      xAccum += secL;
+      continue;
+    }
+    const gX = PAD + xAccum*sL;
+    const bW = bundleL*sL;
+    secPositions.push({gX, bW, bundleL});
+    xAccum += bundleL;
+  }
 
-    const bW=firstBundle.l*sL;
-    const gX=PAD+xOff*sL;
-    xOff+=firstBundle.l;
-    let stackH=0;
-
-    // Draw ALL levels stacked vertically for this section
+  // Now draw each section
+  for(let sec=0;sec<SECTIONS;sec++){
+    const pos = secPositions[sec];
+    if(!pos || pos.skip || pos.empty) continue;
+    const {gX, bW} = pos;
+    let stackH = 0;
     for(let lv=0;lv<LEVELS;lv++){
-      const s=grid[sec][lv][side];
+      const s = grid[sec][lv][side];
       if(!s || s.paired) continue;
-      const bH=s.h*sH;
-      const bY=baseY-deckPx-stackH*sH-bH;
-      const overflows=gX+bW>PAD+trailerLpx;
+      const bH = s.h*sH;
+      const bY = baseY-deckPx-stackH*sH-bH;
+      const overflows = gX+bW > PAD+trailerLpx;
       if(overflows){
-        const insideW=Math.max(0,PAD+trailerLpx-gX);
+        const insideW = Math.max(0, PAD+trailerLpx-gX);
         if(insideW>0){
-          ctx.fillStyle=COLORS[s.size]+'99';ctx.fillRect(gX,bY,insideW,bH-1);
-          ctx.strokeStyle=COLORS[s.size];ctx.lineWidth=0.5;ctx.strokeRect(gX,bY,insideW,bH-1);
+          ctx.fillStyle=COLORS[s.size]+'99'; ctx.fillRect(gX,bY,insideW,bH-1);
+          ctx.strokeStyle=COLORS[s.size]; ctx.lineWidth=0.5; ctx.strokeRect(gX,bY,insideW,bH-1);
         }
-        ctx.fillStyle='#E24B4A33';ctx.fillRect(PAD+trailerLpx,bY,bW-insideW,bH-1);
-        ctx.strokeStyle='#E24B4A';ctx.lineWidth=0.5;ctx.setLineDash([3,2]);
-        ctx.strokeRect(PAD+trailerLpx,bY,bW-insideW,bH-1);
-        ctx.setLineDash([]);
+        ctx.fillStyle='#E24B4A33'; ctx.fillRect(PAD+trailerLpx,bY,bW-insideW,bH-1);
+        ctx.strokeStyle='#E24B4A'; ctx.lineWidth=0.5; ctx.setLineDash([3,2]);
+        ctx.strokeRect(PAD+trailerLpx,bY,bW-insideW,bH-1); ctx.setLineDash([]);
       } else {
-        ctx.fillStyle=COLORS[s.size]+'cc';ctx.fillRect(gX,bY,bW-1,bH-1);
-        ctx.strokeStyle=COLORS[s.size];ctx.lineWidth=0.5;ctx.strokeRect(gX,bY,bW-1,bH-1);
-        // Label inside bundle
+        ctx.fillStyle=COLORS[s.size]+'cc'; ctx.fillRect(gX,bY,bW-1,bH-1);
+        ctx.strokeStyle=COLORS[s.size]; ctx.lineWidth=0.5; ctx.strokeRect(gX,bY,bW-1,bH-1);
         ctx.save();
         ctx.fillStyle='rgba(255,255,255,0.95)';
         ctx.font='bold 9px sans-serif';
-        ctx.textAlign='center';
-        ctx.textBaseline='middle';
+        ctx.textAlign='center'; ctx.textBaseline='middle';
         ctx.fillText(s.size+'" '+s.len+'ft', gX+(bW-1)/2, bY+bH/2);
         ctx.restore();
       }
@@ -582,9 +592,8 @@ function drawSideView(cvId,side,sideColor,sideLabel){
     ctx.textAlign='left';
   }
 
-  ctx.fillStyle=sideColor;ctx.font='10px sans-serif';ctx.textAlign='center';
-  ctx.fillText(sideLabel,PAD+trailerLpx/2,baseY-deckPx-18);
-  ctx.fillStyle='#666';ctx.fillText(Math.round(t.l/12)+"ft",PAD+trailerLpx/2,baseY+12);ctx.textAlign='left';
+  ctx.fillStyle='#666';ctx.font='10px sans-serif';ctx.textAlign='center';
+  ctx.fillText(Math.round(t.l/12)+"ft",PAD+trailerLpx/2,baseY+12);ctx.textAlign='left';
 }
 
 function drawSide(){ drawSideView('cv-side', 0, '#185FA5', ''); }
