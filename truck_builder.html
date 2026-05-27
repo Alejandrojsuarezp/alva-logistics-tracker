@@ -512,86 +512,60 @@ function drawSideView(cvId,side,sideColor,sideLabel){
     ctx.setLineDash([]);
   }
 
-  // Build a position map: secXMap[sec] = x offset in inches from trailer front
-  // Rules:
-  //   - If a section has a span (20ft start): record cumX, then advance cumX by that bundle's length
-  //   - If a section has only paired cells AND some non-paired (mixed level): record cumX, advance by shortest non-paired
-  //   - If a section is entirely paired (the second half of a 20ft span with NO other bundles): mark null, no advance
-  //   - If a section is empty or has only 10ft bundles: record cumX, advance by that bundle length
-  const secXMap = [];
-  let cumX = 0;
-  for(let sec=0;sec<SECTIONS;sec++){
-    // Collect bundle info for this section on this side
-    let hasSpan = false;    // has a 20ft "span" cell (the start cell)
-    let hasPaired = false;  // has a "paired" cell (the extension cell)
-    let hasOwn = false;     // has a non-paired, non-span cell (10ft)
-    let spanL = null;       // length of the span bundle
-    let ownL = null;        // shortest length of non-paired bundles
-    for(let lv=0;lv<LEVELS;lv++){
-      const s = grid[sec][lv][side];
-      if(!s) continue;
-      if(s.span){ hasSpan=true; if(spanL===null||s.l<spanL) spanL=s.l; }
-      else if(s.paired){ hasPaired=true; }
-      else { hasOwn=true; if(ownL===null||s.l<ownL) ownL=s.l; }
-    }
-    // Determine if this section should be skipped (entirely paired, nothing of its own)
-    if(hasPaired && !hasSpan && !hasOwn){
-      // This section is purely the "extension" of a previous 20ft — no independent position
-      secXMap.push(null);
-      continue;
-    }
-    // This section has something to draw — record its x start
-    secXMap.push(cumX);
-    // Advance cumX by the longest bundle type present (span takes priority over 10ft)
-    const advance = hasSpan ? spanL : (hasOwn ? ownL : secL);
-    cumX += advance;
-  }
+  // Draw bundles level by level, each level with its own independent cumX.
+  // A 20ft and a 10ft in the same section have different lengths so they need
+  // independent x tracking — a single shared secXMap cannot handle this correctly.
+  // stackH[sec] tracks accumulated height per section so levels stack properly.
+  const stackH = Array(SECTIONS).fill(0);
+  let maxUsedX = 0; // track furthest x for remaining-space bar
 
-  for(let sec=0;sec<SECTIONS;sec++){
-    if(secXMap[sec] === null) continue; // skip pure-paired sections
-    const gX = PAD + secXMap[sec]*sL;
-    let stackH = 0;
-    for(let lv=0;lv<LEVELS;lv++){
-      const s = grid[sec][lv][side];
-      // Skip paired cells — they are drawn by their span section
-      if(s && s.paired){ continue; }
-      if(!s){ continue; }
-      const bW = s.l*sL;
-      const bH = s.h*sH;
-      const bY = baseY-deckPx-stackH*sH-bH;
-      const overflows = gX+bW > PAD+trailerLpx;
+  for(let lv=0;lv<LEVELS;lv++){
+    let cumX=0;
+    let sec=0;
+    while(sec<SECTIONS){
+      const s=grid[sec][lv][side];
+      if(!s){ cumX+=secL; sec++; continue; }
+      if(s.paired){ sec++; continue; } // already drawn by its span
+      // Draw this bundle
+      const gX=PAD+cumX*sL;
+      const bW=s.l*sL;
+      const bH=s.h*sH;
+      const bY=baseY-deckPx-stackH[sec]*sH-bH;
+      const overflows=gX+bW>PAD+trailerLpx;
       if(overflows){
-        const insideW = Math.max(0, PAD+trailerLpx-gX);
+        const insideW=Math.max(0,PAD+trailerLpx-gX);
         if(insideW>0){
-          ctx.fillStyle=COLORS[s.size]+'99'; ctx.fillRect(gX,bY,insideW,bH-1);
-          ctx.strokeStyle=COLORS[s.size]; ctx.lineWidth=0.5; ctx.strokeRect(gX,bY,insideW,bH-1);
+          ctx.fillStyle=COLORS[s.size]+'99';ctx.fillRect(gX,bY,insideW,bH-1);
+          ctx.strokeStyle=COLORS[s.size];ctx.lineWidth=0.5;ctx.strokeRect(gX,bY,insideW,bH-1);
         }
-        ctx.fillStyle='#E24B4A33'; ctx.fillRect(PAD+trailerLpx,bY,bW-insideW,bH-1);
-        ctx.strokeStyle='#E24B4A'; ctx.lineWidth=0.5; ctx.setLineDash([3,2]);
-        ctx.strokeRect(PAD+trailerLpx,bY,bW-insideW,bH-1); ctx.setLineDash([]);
+        ctx.fillStyle='#E24B4A33';ctx.fillRect(PAD+trailerLpx,bY,bW-insideW,bH-1);
+        ctx.strokeStyle='#E24B4A';ctx.lineWidth=0.5;ctx.setLineDash([3,2]);
+        ctx.strokeRect(PAD+trailerLpx,bY,bW-insideW,bH-1);ctx.setLineDash([]);
       } else {
-        ctx.fillStyle=COLORS[s.size]+'cc'; ctx.fillRect(gX,bY,bW-1,bH-1);
-        ctx.strokeStyle=COLORS[s.size]; ctx.lineWidth=0.5; ctx.strokeRect(gX,bY,bW-1,bH-1);
+        ctx.fillStyle=COLORS[s.size]+'cc';ctx.fillRect(gX,bY,bW-1,bH-1);
+        ctx.strokeStyle=COLORS[s.size];ctx.lineWidth=0.5;ctx.strokeRect(gX,bY,bW-1,bH-1);
         ctx.save();
         ctx.fillStyle='rgba(255,255,255,0.95)';
         ctx.font='bold 9px sans-serif';
-        ctx.textAlign='center'; ctx.textBaseline='middle';
-        ctx.fillText(s.size+'" '+s.len+'ft', gX+(bW-1)/2, bY+bH/2);
+        ctx.textAlign='center';ctx.textBaseline='middle';
+        ctx.fillText(s.size+'" '+s.len+'ft',gX+(bW-1)/2,bY+bH/2);
         ctx.restore();
-        ctx.strokeStyle='rgba(255,255,255,0.7)';
-        ctx.lineWidth=1.5;
-        ctx.beginPath();
-        ctx.moveTo(gX+bW-1, bY);
-        ctx.lineTo(gX+bW-1, bY+bH-1);
-        ctx.stroke();
+        ctx.strokeStyle='rgba(255,255,255,0.7)';ctx.lineWidth=1.5;
+        ctx.beginPath();ctx.moveTo(gX+bW-1,bY);ctx.lineTo(gX+bW-1,bY+bH-1);ctx.stroke();
       }
-      stackH+=s.h;
+      // Update stacked height for the section(s) this bundle occupies
+      stackH[sec]+=s.h;
+      if(s.span && sec+1<SECTIONS) stackH[sec+1]+=s.h;
+      // Track max used x for remaining-space bar
+      if(cumX+s.l>maxUsedX) maxUsedX=cumX+s.l;
+      // Advance
+      cumX+=s.l;
+      sec+=s.span?2:1;
     }
   }
 
   // Show remaining space at back in orange
-  const totalBundleL=SECTIONS*( (()=>{for(let sec=0;sec<SECTIONS;sec++)for(let lv=0;lv<LEVELS;lv++){const s=grid[sec][lv][side];if(s)return s.l;}return 0;})() );
-  const usedLpx=Math.min(totalBundleL*sL,trailerLpx);
+  const usedLpx=Math.min(maxUsedX*sL,trailerLpx);
   const remainLpx=trailerLpx-usedLpx;
   if(remainLpx>2){
     ctx.fillStyle='#EF9F2722';ctx.fillRect(PAD+usedLpx,baseY-deckPx-10,remainLpx,10);
@@ -687,74 +661,21 @@ function draw360(){
     drawBox3d(ctx,-TLh,-deckH,-TWh,TLh,0,TWh,'#888888','99');
   }
 
-  // Bundles — build position map same as side views
+  // Bundles — draw per level with independent cumX (same logic as drawSideView)
   const faces=[];
   const GAP=4;
+  // stackH3d[side][sec] tracks accumulated height per column
+  const stackH3d=[[0,0,0,0],[0,0,0,0]];
 
-  // Build cumulative x positions for each section
-  const sec3dPos=[];
-  let x3dAccum=-TLh;
-  for(let sec=0;sec<SECTIONS;sec++){
-    // Check if any cell in this section is paired (across both sides)
-    let hasPaired=false;
-    for(let lv=0;lv<LEVELS;lv++){
-      for(let sd=0;sd<2;sd++){
-        if(grid[sec][lv][sd]&&grid[sec][lv][sd].paired){hasPaired=true;break;}
-      }
-      if(hasPaired) break;
-    }
-    if(hasPaired){sec3dPos.push({skip:true});continue;}
-
-    // Get real bundle length for this section
-    let bundleL=secL;
-    for(let lv=0;lv<LEVELS;lv++){
-      for(let sd=0;sd<2;sd++){
-        const s=grid[sec][lv][sd];
-        if(s&&!s.paired){bundleL=s.l;break;}
-      }
-      if(bundleL!==secL) break;
-    }
-    const x1=x3dAccum+GAP/2;
-    const x2=x1+bundleL-GAP;
-    sec3dPos.push({x1,x2,bundleL});
-    x3dAccum+=bundleL;
-  }
-
-  // Build section x position map for 3D — same logic as drawSideView secXMap
-  // A section is "skipped" only if it has ONLY paired cells (pure extension of a 20ft span)
-  const sec3dXMap = [];
-  let cum3dX = -TLh;
-  for(let sec=0;sec<SECTIONS;sec++){
-    let hasSpan3d=false, hasPaired3d=false, hasOwn3d=false;
-    let spanL3d=null, ownL3d=null;
-    for(let lv=0;lv<LEVELS;lv++){
-      for(let sd=0;sd<2;sd++){
-        const s=grid[sec][lv][sd];
-        if(!s) continue;
-        if(s.span){ hasSpan3d=true; if(spanL3d===null||s.l<spanL3d) spanL3d=s.l; }
-        else if(s.paired){ hasPaired3d=true; }
-        else { hasOwn3d=true; if(ownL3d===null||s.l<ownL3d) ownL3d=s.l; }
-      }
-    }
-    if(hasPaired3d && !hasSpan3d && !hasOwn3d){
-      sec3dXMap.push(null);
-      continue;
-    }
-    sec3dXMap.push(cum3dX);
-    const adv3d = hasSpan3d ? spanL3d : (hasOwn3d ? ownL3d : secL);
-    cum3dX += adv3d;
-  }
-
-  for(let sec=0;sec<SECTIONS;sec++){
-    if(sec3dXMap[sec]===null) continue; // skip pure-paired sections
-    const secX1=sec3dXMap[sec];
+  for(let lv=0;lv<LEVELS;lv++){
     for(let side=0;side<2;side++){
-      let stackH=0;
-      for(let lv=0;lv<LEVELS;lv++){
+      let cumX3d=-TLh;
+      let sec=0;
+      while(sec<SECTIONS){
         const s=grid[sec][lv][side];
-        // Skip paired cells — drawn by their span section
-        if(!s||s.paired) continue;
-        const x1=secX1+GAP/2;
+        if(!s){ cumX3d+=secL; sec++; continue; }
+        if(s.paired){ sec++; continue; }
+        const x1=cumX3d+GAP/2;
         const x2=x1+s.l-GAP;
         const secMidX=(x1+x2)/2;
         let secDeckH=deckH;
@@ -763,10 +684,14 @@ function draw360(){
         }
         const z1=side===0?GAP/2:-TWh+GAP/2;
         const z2=side===0?TWh-GAP/2:-GAP/2;
-        const y1=-(secDeckH+stackH+s.h)+GAP/2,y2=-(secDeckH+stackH)-GAP/2;
+        const sh=stackH3d[side][sec];
+        const y1=-(secDeckH+sh+s.h)+GAP/2, y2=-(secDeckH+sh)-GAP/2;
         const avg=project3d((x1+x2)/2,(y1+y2)/2,(z1+z2)/2);
         faces.push({x1,y1,z1,x2,y2,z2,col:COLORS[s.size],d:avg.d,overflow:x2>TLh,label:s.size+'" '+s.len+'ft'});
-        stackH+=s.h;
+        stackH3d[side][sec]+=s.h;
+        if(s.span && sec+1<SECTIONS) stackH3d[side][sec+1]+=s.h;
+        cumX3d+=s.l;
+        sec+=s.span?2:1;
       }
     }
   }
@@ -789,27 +714,23 @@ function draw360(){
     ctx.fillText(label,p2.px+4,p2.py);
   });
 
-  // Bundle labels in 3D
+  // Bundle labels in 3D — use L1 as reference level for label positions
   ctx.font='bold 10px sans-serif';ctx.textAlign='center';
-  let xOffLabel=0;
-  for(let sec=0;sec<SECTIONS;sec++){
-    let bundleL=secL, hasBundle=false, labelText='';
-    let allPairedL=true;
-    for(let lv=0;lv<LEVELS;lv++){
-      for(let sd=0;sd<2;sd++){
-        const s=grid[sec][lv][sd];
-        if(s && !s.paired){allPairedL=false; bundleL=s.l; hasBundle=true; labelText=s.size+'" '+s.len+'ft'; break;}
-      }
-      if(!allPairedL) break;
-    }
-    if(allPairedL) continue;
-    if(hasBundle){
-      const midX=-TLh+xOffLabel+bundleL/2;
+  {
+    let cumXLabel=-TLh;
+    let sec=0;
+    while(sec<SECTIONS){
+      let s=null;
+      for(let sd=0;sd<2;sd++){ s=grid[sec][0][sd]; if(s) break; }
+      if(!s){ cumXLabel+=secL; sec++; continue; }
+      if(s.paired){ sec++; continue; }
+      const midX=cumXLabel+s.l/2;
       const labelP=project3d(midX,-deckH-15,0);
       ctx.fillStyle='#555';
-      ctx.fillText(labelText,labelP.px,labelP.py);
+      ctx.fillText(s.size+'" '+s.len+'ft',labelP.px,labelP.py);
+      cumXLabel+=s.l;
+      sec+=s.span?2:1;
     }
-    xOffLabel+=bundleL;
   }
 
   // FRONT label
