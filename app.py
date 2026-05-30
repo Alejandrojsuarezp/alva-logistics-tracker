@@ -1,7 +1,7 @@
 # ============================================
 # X LOGISTICS TRACKER - Web Interface
 # ============================================
- 
+
 import streamlit as st
 import pandas as pd
 import requests
@@ -9,29 +9,29 @@ from datetime import datetime, date
 from config import AIRTABLE_TOKEN, SHIPMENTS_TABLE, LOADS_TABLE, PRICING_TABLE, UPDATES_LOG_TABLE
 from airtable_connection import get_all_shipments, get_loads, get_pricing, get_updates_log
 from consolidation_detector import detectar_consolidaciones
- 
+
 st.set_page_config(
     page_title="X Logistics Tracker",
     page_icon="🚛",
     layout="wide",
     initial_sidebar_state="expanded"
 )
- 
+
 # ── GLOBAL CSS ─────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
 /* Import font */
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap');
- 
+
 /* Reset & base */
 html, body, [class*="css"] {
     font-family: 'DM Sans', sans-serif;
 }
- 
+
 /* Hide Streamlit default elements */
 #MainMenu, footer, header { visibility: hidden; }
 .block-container { padding: 1.5rem 2rem 2rem 2rem !important; }
- 
+
 /* ── SIDEBAR ── */
 section[data-testid="stSidebar"] {
     background: #ffffff;
@@ -42,7 +42,7 @@ section[data-testid="stSidebar"] {
 section[data-testid="stSidebar"] > div {
     padding: 0 !important;
 }
- 
+
 /* Brand */
 .xlt-brand {
     display: flex;
@@ -65,7 +65,7 @@ section[data-testid="stSidebar"] > div {
     color: #0f172a;
     line-height: 1.2;
 }
- 
+
 /* Nav section label */
 .xlt-nav-section {
     font-size: 9px;
@@ -75,17 +75,17 @@ section[data-testid="stSidebar"] > div {
     letter-spacing: .07em;
     padding: 10px 16px 4px 16px;
 }
- 
+
 /* Nav divider */
 .xlt-nav-div {
     height: 1px;
     background: #f0f0f0;
     margin: 6px 12px;
 }
- 
+
 /* Override Streamlit radio */
 div[data-testid="stSidebarNav"] { display: none; }
- 
+
 /* Status badges */
 .badge {
     display: inline-block;
@@ -98,7 +98,7 @@ div[data-testid="stSidebarNav"] { display: none; }
 .badge-progress { background: #FFFBEB; color: #b45309; }
 .badge-ready    { background: #F0FDF4; color: #15803d; }
 .badge-shipped  { background: #F8FAFC; color: #64748b; }
- 
+
 /* Page title */
 .xlt-page-title {
     font-size: 20px;
@@ -111,7 +111,7 @@ div[data-testid="stSidebarNav"] { display: none; }
     color: #94a3b8;
     margin-bottom: 1.25rem;
 }
- 
+
 /* Metric card */
 .xlt-metric {
     background: #ffffff;
@@ -140,7 +140,7 @@ div[data-testid="stSidebarNav"] { display: none; }
     color: #94a3b8;
     margin-top: 3px;
 }
- 
+
 /* Table */
 .xlt-table-wrap {
     background: #ffffff;
@@ -170,7 +170,7 @@ div[data-testid="stSidebarNav"] { display: none; }
 }
 .xlt-table tr:last-child td { border-bottom: none; }
 .xlt-table tr:hover td { background: #fafbff; }
- 
+
 /* Section card */
 .xlt-section-card {
     background: #ffffff;
@@ -188,7 +188,7 @@ div[data-testid="stSidebarNav"] { display: none; }
     align-items: center;
     gap: 6px;
 }
- 
+
 /* Form styling */
 .xlt-form-card {
     background: #ffffff;
@@ -225,7 +225,7 @@ div[data-testid="stSidebarNav"] { display: none; }
     color: #64748b;
     margin-bottom: 8px;
 }
- 
+
 /* Streamlit widget overrides */
 div[data-testid="stSelectbox"] label,
 div[data-testid="stTextInput"] label,
@@ -243,16 +243,19 @@ div[data-testid="stButton"] button {
 }
 </style>
 """, unsafe_allow_html=True)
- 
+
 # ── HEADERS FOR AIRTABLE ────────────────────────────────────────────────────
 HEADERS = {
     "Authorization": f"Bearer {AIRTABLE_TOKEN}",
     "Content-Type": "application/json"
 }
 BASE_ID = st.secrets["BASE_ID"]
- 
+
 # ── HELPER FUNCTIONS ────────────────────────────────────────────────────────
 def badge_html(status):
+    if isinstance(status, list):
+        status = status[0] if status else ""
+    status = str(status) if status else "—"
     cls = {
         "Pending Print": "badge-pending",
         "In Progress":   "badge-progress",
@@ -260,31 +263,31 @@ def badge_html(status):
         "Shipped":       "badge-shipped",
         "Pending":       "badge-pending",
         "Selected":      "badge-ready",
-        "Lost":          "badge badge-shipped",
+        "Lost":          "badge-shipped",
         "Scheduled":     "badge-pending",
         "In Transit":    "badge-progress",
     }.get(status, "badge-shipped")
     return f'<span class="badge {cls}">{status}</span>'
- 
+
 def fmt_weight(x):
     try: return f"{int(x):,}"
     except: return str(x) if x else "—"
- 
+
 def fmt_date(x):
     if not x: return "—"
     try: return datetime.strptime(x, "%Y-%m-%d").strftime("%m/%d/%Y")
     except: return x
- 
+
 def create_record(table_id, fields):
     url = f"https://api.airtable.com/v0/{BASE_ID}/{table_id}"
     response = requests.post(url, headers=HEADERS, json={"fields": fields})
     return response
- 
+
 def update_record_api(table_id, record_id, fields):
     url = f"https://api.airtable.com/v0/{BASE_ID}/{table_id}/{record_id}"
     response = requests.patch(url, headers=HEADERS, json={"fields": fields})
     return response
- 
+
 # ── SIDEBAR ─────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown("""
@@ -294,7 +297,7 @@ with st.sidebar:
     </div>
     <div class="xlt-nav-section">Main</div>
     """, unsafe_allow_html=True)
- 
+
     pagina = st.radio("nav", [
         "🏠  Dashboard",
         "📦  Shipments",
@@ -304,29 +307,29 @@ with st.sidebar:
         "🔄  Consolidations",
         "🔧  Truck Builder",
     ], label_visibility="collapsed")
- 
+
     st.markdown(f"""
     <div class="xlt-nav-div"></div>
     <div style="padding:12px 16px;font-size:11px;color:#94a3b8;">
         Texas · {datetime.now().strftime('%b %d, %Y')}
     </div>
     """, unsafe_allow_html=True)
- 
+
 # ── DASHBOARD ───────────────────────────────────────────────────────────────
 if pagina == "🏠  Dashboard":
     st.markdown('<div class="xlt-page-title">Operations Dashboard</div>', unsafe_allow_html=True)
     st.markdown(f'<div class="xlt-page-sub">{datetime.now().strftime("%A, %B %d %Y")} · Texas</div>', unsafe_allow_html=True)
- 
+
     with st.spinner("Loading data..."):
         shipments = get_all_shipments()
         loads = get_loads()
- 
+
     pending    = [s for s in shipments if s["warehouse_status"] == "Pending Print"]
     in_prog    = [s for s in shipments if s["warehouse_status"] == "In Progress"]
     ready      = [s for s in shipments if s["warehouse_status"] == "Ready"]
     shipped    = [s for s in shipments if s["warehouse_status"] == "Shipped"]
     active_lds = [l for l in loads if l["load_status"] not in ("Shipped", "Delivered")]
- 
+
     # Metrics
     c1, c2, c3, c4, c5 = st.columns(5)
     metrics = [
@@ -344,11 +347,11 @@ if pagina == "🏠  Dashboard":
                 <div class="xlt-metric-val">{val}</div>
                 <div class="xlt-metric-lbl">{lbl}</div>
             </div>""", unsafe_allow_html=True)
- 
+
     st.markdown("<br>", unsafe_allow_html=True)
- 
+
     col_l, col_r = st.columns(2)
- 
+
     # Active Shipments
     with col_l:
         activos = pending + in_prog + ready
@@ -371,7 +374,7 @@ if pagina == "🏠  Dashboard":
             </table></div>""", unsafe_allow_html=True)
         else:
             st.info("No active shipments.")
- 
+
     # Active Loads
     with col_r:
         st.markdown('<div class="xlt-section-title">📦 Active Loads</div>', unsafe_allow_html=True)
@@ -393,24 +396,24 @@ if pagina == "🏠  Dashboard":
             </table></div>""", unsafe_allow_html=True)
         else:
             st.info("No active loads.")
- 
+
 # ── SHIPMENTS ───────────────────────────────────────────────────────────────
 elif pagina == "📦  Shipments":
     st.markdown('<div class="xlt-page-title">Shipments</div>', unsafe_allow_html=True)
- 
+
     with st.spinner("Loading shipments..."):
         shipments = get_all_shipments()
- 
+
     # Filter + count
     col_f, col_btn = st.columns([4, 1])
     with col_f:
         filtro = st.selectbox("Filter by status", ["All","Pending Print","In Progress","Ready","Shipped"], label_visibility="collapsed")
     with col_btn:
         show_form = st.button("＋  New Shipment", type="primary", use_container_width=True)
- 
+
     filtered = [s for s in shipments if filtro == "All" or s["warehouse_status"] == filtro]
     st.markdown(f'<div class="xlt-page-sub">{len(filtered)} shipments</div>', unsafe_allow_html=True)
- 
+
     # Table
     if filtered:
         rows = ""
@@ -437,9 +440,9 @@ elif pagina == "📦  Shipments":
         </table></div>""", unsafe_allow_html=True)
     else:
         st.info("No shipments found.")
- 
+
     st.markdown("<br>", unsafe_allow_html=True)
- 
+
     # Update Status
     with st.expander("✏️  Update Warehouse Status", expanded=False):
         col_s, col_ns = st.columns(2)
@@ -456,27 +459,27 @@ elif pagina == "📦  Shipments":
                     st.rerun()
                 else:
                     st.error(f"Error {r.status_code}: {r.text}")
- 
+
     # New Shipment Form
     if show_form:
         st.session_state["show_shipment_form"] = True
- 
+
     if st.session_state.get("show_shipment_form"):
         st.markdown('<div class="xlt-form-card">', unsafe_allow_html=True)
         st.markdown('<div class="xlt-form-title">➕ New Shipment <span class="auto-badge">Order Date auto-generated · Status starts as Pending Print</span></div>', unsafe_allow_html=True)
- 
+
         c1, c2 = st.columns(2)
         with c1:
             f_shipment_num = st.text_input("Shipment Number *", placeholder="e.g. SH-0042")
         with c2:
             f_customer = st.text_input("Customer *", placeholder="Company name")
- 
+
         c1, c2 = st.columns(2)
         with c1:
             f_email = st.text_input("Customer Email", placeholder="email@company.com")
         with c2:
             f_delivery = st.date_input("Requested Delivery Date *", min_value=date.today())
- 
+
         c1, c2, c3 = st.columns(3)
         with c1:
             f_city = st.text_input("City *", placeholder="Houston")
@@ -488,7 +491,7 @@ elif pagina == "📦  Shipments":
             ])
         with c3:
             f_zip = st.text_input("ZIP Code", placeholder="77001")
- 
+
         c1, c2, c3 = st.columns(3)
         with c1:
             f_trailer = st.selectbox("Trailer Type Needed *", [
@@ -498,9 +501,9 @@ elif pagina == "📦  Shipments":
             f_weight = st.number_input("Weight (lbs) *", min_value=0, step=100)
         with c3:
             f_bundles = st.number_input("Bundles *", min_value=0, step=1)
- 
+
         f_notes = st.text_area("Notes", placeholder="Special instructions, gate codes, contacts...", height=80)
- 
+
         col_cancel, col_spacer, col_save = st.columns([1, 3, 1])
         with col_cancel:
             if st.button("Cancel", use_container_width=True):
@@ -534,29 +537,29 @@ elif pagina == "📦  Shipments":
                         st.rerun()
                     else:
                         st.error(f"Error {r.status_code}: {r.text}")
- 
+
         st.markdown('</div>', unsafe_allow_html=True)
- 
+
 # ── LOADS ────────────────────────────────────────────────────────────────────
 elif pagina == "🚛  Loads":
     st.markdown('<div class="xlt-page-title">Loads</div>', unsafe_allow_html=True)
     st.info("Coming soon — Loads page with full form is being built.")
- 
+
 # ── PRICING ──────────────────────────────────────────────────────────────────
 elif pagina == "💲  Pricing":
     st.markdown('<div class="xlt-page-title">Pricing</div>', unsafe_allow_html=True)
     st.info("Coming soon — Pricing page with full form is being built.")
- 
+
 # ── UPDATES LOG ──────────────────────────────────────────────────────────────
 elif pagina == "📋  Updates Log":
     st.markdown('<div class="xlt-page-title">Updates Log</div>', unsafe_allow_html=True)
     st.info("Coming soon — Updates Log page with full form is being built.")
- 
+
 # ── CONSOLIDATIONS ───────────────────────────────────────────────────────────
 elif pagina == "🔄  Consolidations":
     st.markdown('<div class="xlt-page-title">Consolidation Detector</div>', unsafe_allow_html=True)
     st.info("Coming soon — Consolidations page is being rebuilt with Type A, B and C detection.")
- 
+
 # ── TRUCK BUILDER ─────────────────────────────────────────────────────────────
 elif pagina == "🔧  Truck Builder":
     st.markdown('<div class="xlt-page-title">Truck Builder</div>', unsafe_allow_html=True)
