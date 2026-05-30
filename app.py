@@ -68,7 +68,7 @@ section[data-testid="stSidebar"] > div {
 
 /* Nav section label */
 .xlt-nav-section {
-    font-size: 9px;
+    font-size: 11px;
     font-weight: 600;
     color: #94a3b8;
     text-transform: uppercase;
@@ -85,13 +85,20 @@ section[data-testid="stSidebar"] > div {
 
 /* Override Streamlit radio */
 div[data-testid="stSidebarNav"] { display: none; }
+div[data-testid="stSidebar"] div[role="radiogroup"] label {
+    font-size: 14px !important;
+    padding: 6px 8px !important;
+}
+div[data-testid="stSidebar"] div[role="radiogroup"] label p {
+    font-size: 14px !important;
+}
 
 /* Status badges */
 .badge {
     display: inline-block;
-    padding: 2px 9px;
+    padding: 3px 10px;
     border-radius: 20px;
-    font-size: 11px;
+    font-size: 13px;
     font-weight: 500;
 }
 .badge-pending  { background: #EFF6FF; color: #1d4ed8; }
@@ -101,13 +108,13 @@ div[data-testid="stSidebarNav"] { display: none; }
 
 /* Page title */
 .xlt-page-title {
-    font-size: 20px;
+    font-size: 24px;
     font-weight: 600;
     color: #0f172a;
     margin-bottom: 2px;
 }
 .xlt-page-sub {
-    font-size: 13px;
+    font-size: 14px;
     color: #94a3b8;
     margin-bottom: 1.25rem;
 }
@@ -117,28 +124,28 @@ div[data-testid="stSidebarNav"] { display: none; }
     background: #ffffff;
     border: 1px solid #f0f0f0;
     border-radius: 10px;
-    padding: 14px 16px;
+    padding: 16px;
 }
 .xlt-metric-icon {
-    width: 30px;
-    height: 30px;
+    width: 32px;
+    height: 32px;
     border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
     margin-bottom: 10px;
-    font-size: 15px;
+    font-size: 16px;
 }
 .xlt-metric-val {
-    font-size: 26px;
+    font-size: 28px;
     font-weight: 600;
     color: #0f172a;
     line-height: 1;
 }
 .xlt-metric-lbl {
-    font-size: 11px;
+    font-size: 13px;
     color: #94a3b8;
-    margin-top: 3px;
+    margin-top: 4px;
 }
 
 /* Table */
@@ -151,22 +158,22 @@ div[data-testid="stSidebarNav"] { display: none; }
 .xlt-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 13px;
+    font-size: 14px;
 }
 .xlt-table th {
     background: #fafafa;
-    padding: 9px 14px;
+    padding: 10px 16px;
     text-align: left;
-    font-size: 11px;
+    font-size: 13px;
     font-weight: 500;
     color: #94a3b8;
     border-bottom: 1px solid #f0f0f0;
 }
 .xlt-table td {
-    padding: 9px 14px;
+    padding: 10px 16px;
     border-bottom: 1px solid #f8f8f8;
     color: #0f172a;
-    font-size: 12px;
+    font-size: 14px;
 }
 .xlt-table tr:last-child td { border-bottom: none; }
 .xlt-table tr:hover td { background: #fafbff; }
@@ -180,7 +187,7 @@ div[data-testid="stSidebarNav"] { display: none; }
     margin-bottom: 1rem;
 }
 .xlt-section-title {
-    font-size: 13px;
+    font-size: 15px;
     font-weight: 600;
     color: #0f172a;
     margin-bottom: 12px;
@@ -198,7 +205,7 @@ div[data-testid="stSidebarNav"] { display: none; }
     margin-top: 1rem;
 }
 .xlt-form-title {
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 600;
     color: #0f172a;
     margin-bottom: 16px;
@@ -209,7 +216,7 @@ div[data-testid="stSidebarNav"] { display: none; }
     gap: 7px;
 }
 .auto-badge {
-    font-size: 10px;
+    font-size: 11px;
     background: #EFF6FF;
     color: #185FA5;
     padding: 2px 7px;
@@ -221,7 +228,7 @@ div[data-testid="stSidebarNav"] { display: none; }
     border: 1px solid #e2e8f0;
     border-radius: 8px;
     padding: 10px 14px;
-    font-size: 12px;
+    font-size: 13px;
     color: #64748b;
     margin-bottom: 8px;
 }
@@ -233,13 +240,14 @@ div[data-testid="stNumberInput"] label,
 div[data-testid="stTextArea"] label,
 div[data-testid="stDateInput"] label,
 div[data-testid="stMultiSelect"] label {
-    font-size: 12px !important;
+    font-size: 14px !important;
     font-weight: 500 !important;
     color: #64748b !important;
 }
 div[data-testid="stButton"] button {
     font-family: 'DM Sans', sans-serif;
     font-weight: 500;
+    font-size: 14px !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -299,13 +307,13 @@ with st.sidebar:
     """, unsafe_allow_html=True)
 
     pagina = st.radio("nav", [
-        "🏠  Dashboard",
-        "📦  Shipments",
-        "🚛  Loads",
-        "💲  Pricing",
-        "📋  Updates Log",
-        "🔄  Consolidations",
-        "🔧  Truck Builder",
+        "Dashboard",
+        "Shipments",
+        "Loads",
+        "Pricing",
+        "Updates Log",
+        "Consolidations",
+        "Truck Builder",
     ], label_visibility="collapsed")
 
     st.markdown(f"""
@@ -316,7 +324,7 @@ with st.sidebar:
     """, unsafe_allow_html=True)
 
 # ── DASHBOARD ───────────────────────────────────────────────────────────────
-if pagina == "🏠  Dashboard":
+if pagina == "Dashboard":
     st.markdown('<div class="xlt-page-title">Operations Dashboard</div>', unsafe_allow_html=True)
     st.markdown(f'<div class="xlt-page-sub">{datetime.now().strftime("%A, %B %d %Y")} · Texas</div>', unsafe_allow_html=True)
 
@@ -398,7 +406,7 @@ if pagina == "🏠  Dashboard":
             st.info("No active loads.")
 
 # ── SHIPMENTS ───────────────────────────────────────────────────────────────
-elif pagina == "📦  Shipments":
+elif pagina == "Shipments":
     st.markdown('<div class="xlt-page-title">Shipments</div>', unsafe_allow_html=True)
 
     with st.spinner("Loading shipments..."):
@@ -541,27 +549,27 @@ elif pagina == "📦  Shipments":
         st.markdown('</div>', unsafe_allow_html=True)
 
 # ── LOADS ────────────────────────────────────────────────────────────────────
-elif pagina == "🚛  Loads":
+elif pagina == "Loads":
     st.markdown('<div class="xlt-page-title">Loads</div>', unsafe_allow_html=True)
     st.info("Coming soon — Loads page with full form is being built.")
 
 # ── PRICING ──────────────────────────────────────────────────────────────────
-elif pagina == "💲  Pricing":
+elif pagina == "Pricing":
     st.markdown('<div class="xlt-page-title">Pricing</div>', unsafe_allow_html=True)
     st.info("Coming soon — Pricing page with full form is being built.")
 
 # ── UPDATES LOG ──────────────────────────────────────────────────────────────
-elif pagina == "📋  Updates Log":
+elif pagina == "Updates Log":
     st.markdown('<div class="xlt-page-title">Updates Log</div>', unsafe_allow_html=True)
     st.info("Coming soon — Updates Log page with full form is being built.")
 
 # ── CONSOLIDATIONS ───────────────────────────────────────────────────────────
-elif pagina == "🔄  Consolidations":
+elif pagina == "Consolidations":
     st.markdown('<div class="xlt-page-title">Consolidation Detector</div>', unsafe_allow_html=True)
     st.info("Coming soon — Consolidations page is being rebuilt with Type A, B and C detection.")
 
 # ── TRUCK BUILDER ─────────────────────────────────────────────────────────────
-elif pagina == "🔧  Truck Builder":
+elif pagina == "Truck Builder":
     st.markdown('<div class="xlt-page-title">Truck Builder</div>', unsafe_allow_html=True)
     st.markdown('<div class="xlt-page-sub">Opens in a new tab for full interactivity</div>', unsafe_allow_html=True)
     st.link_button("Open Truck Builder 🚛", "https://alejandrojsuarezp.github.io/alva-logistics-tracker/truck_builder.html", type="primary")
