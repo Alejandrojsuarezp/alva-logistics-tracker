@@ -675,10 +675,11 @@ elif pagina == "Loads":
                         "Load Status": f_load_status,
                         "Trailer Type": f_trailer_ld,
                         "ETA Pickup": f_eta.isoformat(),
-                        "Linked Shipments": [{"id": sid} for sid in ship_ids],
                     }
+                    if ship_ids:
+                        fields["Linked Shipments"] = ship_ids
                     if quote_obj:
-                        fields["Selected Quote"] = [{"id": quote_obj["id"]}]
+                        fields["Selected Quote"] = [quote_obj["id"]]
 
                     r = create_record(LOADS_TABLE, fields)
                     if r.status_code in (200, 201):
@@ -803,8 +804,9 @@ elif pagina == "Pricing":
                         "Freight Cost": f_freight,
                         "Sales Value": f_sales,
                         "Status": f_quote_status,
-                        "Shipments": [{"id": sid} for sid in ship_ids_pr],
                     }
+                    if ship_ids_pr:
+                        fields["Shipments"] = ship_ids_pr
                     if f_notes_pr:
                         fields["Notes"] = f_notes_pr
 
@@ -914,11 +916,11 @@ elif pagina == "Updates Log":
                         "Date/Time": datetime.now().isoformat(),
                     }
                     if ship_obj:
-                        fields["Shipment"] = [{"id": ship_obj["id"]}]
+                        fields["Shipment"] = [ship_obj["id"]]
                     if f_load_ul != "— None —":
                         load_obj = next((l for l in loads if l["load_number"] == f_load_ul), None)
                         if load_obj:
-                            fields["Linked Load"] = [{"id": load_obj["id"]}]
+                            fields["Linked Load"] = [load_obj["id"]]
 
                     r = create_record(UPDATES_LOG_TABLE, fields)
                     if r.status_code in (200, 201):
