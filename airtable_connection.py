@@ -107,25 +107,17 @@ def get_loads():
         else:
             sales = sales_raw
 
-        # Get linked shipment numbers from linked record IDs
-        linked_raw = fields.get("Linked Shipments", [])
-        if isinstance(linked_raw, list):
-            # Airtable returns record IDs for linked records
-            # We store them to resolve later, or use Shipment Numbers lookup if available
-            linked_shipment_ids = [r if isinstance(r, str) else r.get("id","") for r in linked_raw]
-        else:
-            linked_shipment_ids = []
-
-        # Try to get shipment numbers from a lookup field if it exists
-        shpt_numbers_raw = fields.get("Shipment Number", [])
-        if not shpt_numbers_raw:
-            shpt_numbers_raw = fields.get("Shipment Numbers", [])
+        # Get linked shipment numbers from lookup field
+        shpt_numbers_raw = fields.get("Shipment Numbers", [])
         if isinstance(shpt_numbers_raw, list) and shpt_numbers_raw:
             linked_shipments = ", ".join([str(s) for s in shpt_numbers_raw])
-        elif linked_shipment_ids:
-            linked_shipments = f"{len(linked_shipment_ids)} shipment(s)"
+        elif isinstance(shpt_numbers_raw, str) and shpt_numbers_raw:
+            linked_shipments = shpt_numbers_raw
         else:
-            linked_shipments = ""
+            # Fallback: count linked records
+            linked_raw = fields.get("Linked Shipments", [])
+            n = len(linked_raw) if isinstance(linked_raw, list) else 0
+            linked_shipments = f"{n} shipment(s)" if n > 0 else "—"
 
         loads.append({
             "id": record["id"],
