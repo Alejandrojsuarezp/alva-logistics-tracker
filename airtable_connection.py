@@ -4,6 +4,7 @@
 
 import requests
 from config import AIRTABLE_TOKEN, BASE_ID, SHIPMENTS_TABLE, PRICING_TABLE, LOADS_TABLE, UPDATES_LOG_TABLE, BUNDLE_DIMENSIONS_TABLE
+
 def format_date(date_str):
     if not date_str:
         return ""
@@ -13,6 +14,7 @@ def format_date(date_str):
         return dt.strftime("%m/%d/%Y %I:%M %p")
     except:
         return date_str
+
 HEADERS = {
     "Authorization": f"Bearer {AIRTABLE_TOKEN}",
     "Content-Type": "application/json"
@@ -23,7 +25,6 @@ def get_records(table_id, filter_formula=None):
     params = {}
     if filter_formula:
         params["filterByFormula"] = filter_formula
-    
     all_records = []
     while True:
         response = requests.get(url, headers=HEADERS, params=params)
@@ -84,7 +85,7 @@ def get_loads():
     loads = []
     for record in records:
         fields = record.get("fields", {})
-        
+
         # Get carrier from lookup
         carrier_raw = fields.get("Carrier", "")
         if isinstance(carrier_raw, list):
@@ -106,6 +107,26 @@ def get_loads():
         else:
             sales = sales_raw
 
+        # Get linked shipment numbers from linked record IDs
+        linked_raw = fields.get("Linked Shipments", [])
+        if isinstance(linked_raw, list):
+            # Airtable returns record IDs for linked records
+            # We store them to resolve later, or use Shipment Numbers lookup if available
+            linked_shipment_ids = [r if isinstance(r, str) else r.get("id","") for r in linked_raw]
+        else:
+            linked_shipment_ids = []
+
+        # Try to get shipment numbers from a lookup field if it exists
+        shpt_numbers_raw = fields.get("Shipment Number", [])
+        if not shpt_numbers_raw:
+            shpt_numbers_raw = fields.get("Shipment Numbers", [])
+        if isinstance(shpt_numbers_raw, list) and shpt_numbers_raw:
+            linked_shipments = ", ".join([str(s) for s in shpt_numbers_raw])
+        elif linked_shipment_ids:
+            linked_shipments = f"{len(linked_shipment_ids)} shipment(s)"
+        else:
+            linked_shipments = ""
+
         loads.append({
             "id": record["id"],
             "load_number": fields.get("Load Number", ""),
@@ -117,7 +138,8 @@ def get_loads():
             "eta_pickup": format_date(fields.get("ETA Pickup", "")),
             "freight_cost": freight,
             "sales_value": sales,
-            "freight_pct": fields.get("Freight %", 0)
+            "freight_pct": fields.get("Freight %", 0),
+            "linked_shipments": linked_shipments
         })
     return loads
 
@@ -137,6 +159,7 @@ def get_pricing():
             "status": fields.get("Status", "")
         })
     return quotes
+
 def get_updates_log():
     records = get_records(UPDATES_LOG_TABLE)
     updates = []
@@ -164,6 +187,7 @@ def get_updates_log():
             "attention_flag": fields.get("Attention Flag", False)
         })
     return updates
+
 def get_bundle_dimensions():
     records = get_records(BUNDLE_DIMENSIONS_TABLE)
     dimensions = []
@@ -179,12 +203,8 @@ def get_bundle_dimensions():
             "height_in": fields.get("Height (in)", 0)
         })
     return dimensions
+
 def update_record(table_id, record_id, fields):
     url = f"https://api.airtable.com/v0/{BASE_ID}/{table_id}/{record_id}"
-    print(f"Actualizando: {url}")
-    print(f"Fields: {fields}")
-    print(f"Token: {AIRTABLE_TOKEN[:20]}...")
     response = requests.patch(url, headers=HEADERS, json={"fields": fields})
-    print(f"Response status: {response.status_code}")
-    print(f"Response: {response.text}")
     return response.json()
