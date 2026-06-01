@@ -531,7 +531,6 @@ elif pagina == "Shipments":
                         "Customer": f_customer,
                         "City": f_city,
                         "State": f_state,
-                        "ZIP Code": f_zip,
                         "Trailer Type Needed": f_trailer,
                         "Weight": f_weight,
                         "Bundles": int(f_bundles),
@@ -540,6 +539,11 @@ elif pagina == "Shipments":
                         "Requested Delivery Date": f_delivery.isoformat(),
                         "Notes": f_notes,
                     }
+                    if f_zip:
+                        try:
+                            fields["ZIP Code"] = int(f_zip)
+                        except:
+                            fields["ZIP Code"] = f_zip
                     if f_email:
                         fields["Customer Email"] = f_email
                     r = create_record(SHIPMENTS_TABLE, fields)
