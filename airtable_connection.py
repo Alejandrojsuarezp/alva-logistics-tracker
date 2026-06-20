@@ -80,50 +80,48 @@ def get_all_shipments():
         })
     return shipments
 
+def _resolve_list_field(raw):
+    """Helper: Airtable lookup fields often return lists. Flatten to a display string."""
+    if isinstance(raw, list):
+        return ", ".join([str(x) for x in raw if x])
+    return str(raw) if raw else ""
+
 def get_loads():
     records = get_records(LOADS_TABLE)
+    # Build a shipment_id -> shipment_number map once, so we can resolve
+    # "Linked Shipments" (multipleRecordLinks, returns record IDs) into readable numbers
+    shipment_records = get_records(SHIPMENTS_TABLE)
+    id_to_shpt_number = {
+        r["id"]: r.get("fields", {}).get("Shipment Number", "")
+        for r in shipment_records
+    }
+
     loads = []
     for record in records:
         fields = record.get("fields", {})
 
-        # Get carrier from lookup
-        carrier_raw = fields.get("Carrier", "")
-        if isinstance(carrier_raw, list):
-            carrier = carrier_raw[0] if carrier_raw else ""
-        else:
-            carrier = carrier_raw
+        # Carrier comes from a lookup field (array)
+        carrier = _resolve_list_field(fields.get("Carrier", ""))
 
-        # Get freight cost from lookup
+        # Freight cost / Sales value come from lookup fields (arrays)
         freight_raw = fields.get("Freight Cost", 0)
-        if isinstance(freight_raw, list):
-            freight = freight_raw[0] if freight_raw else 0
-        else:
-            freight = freight_raw
+        freight = freight_raw[0] if isinstance(freight_raw, list) and freight_raw else (freight_raw if not isinstance(freight_raw, list) else 0)
 
-        # Get sales value from lookup
         sales_raw = fields.get("Sales Value", 0)
-        if isinstance(sales_raw, list):
-            sales = sales_raw[0] if sales_raw else 0
-        else:
-            sales = sales_raw
+        sales = sales_raw[0] if isinstance(sales_raw, list) and sales_raw else (sales_raw if not isinstance(sales_raw, list) else 0)
 
-        # Get linked shipment numbers from lookup field
-        shpt_numbers_raw = fields.get("Shipment Numbers", [])
-        if isinstance(shpt_numbers_raw, list) and shpt_numbers_raw:
-            linked_shipments = ", ".join([str(s) for s in shpt_numbers_raw])
-        elif isinstance(shpt_numbers_raw, str) and shpt_numbers_raw:
-            linked_shipments = shpt_numbers_raw
-        else:
-            # Fallback: count linked records
-            linked_raw = fields.get("Linked Shipments", [])
-            n = len(linked_raw) if isinstance(linked_raw, list) else 0
-            linked_shipments = f"{n} shipment(s)" if n > 0 else "—"
+        # Linked Shipments is multipleRecordLinks -> list of record IDs
+        linked_ids = fields.get("Linked Shipments", [])
+        if not isinstance(linked_ids, list):
+            linked_ids = []
+        linked_numbers = [id_to_shpt_number.get(rid, rid) for rid in linked_ids]
+        linked_shipments = ", ".join([str(n) for n in linked_numbers if n]) or "—"
 
         loads.append({
             "id": record["id"],
             "load_number": fields.get("Load Number", ""),
             "carrier": carrier,
-            "total_weight": f"{int(fields.get('Total Weight', 0)):,}",
+            "total_weight": f"{int(fields.get('Total Weight', 0) or 0):,}",
             "total_bundles": fields.get("Total Bundles", 0),
             "destinations": fields.get("Destinations", []),
             "load_status": fields.get("Load Status", ""),
@@ -131,15 +129,29 @@ def get_loads():
             "freight_cost": freight,
             "sales_value": sales,
             "freight_pct": fields.get("Freight %", 0),
-            "linked_shipments": linked_shipments
+            "linked_shipments": linked_shipments,
+            "linked_shipment_ids": linked_ids,
         })
     return loads
 
 def get_pricing():
     records = get_records(PRICING_TABLE)
+    shipment_records = get_records(SHIPMENTS_TABLE)
+    id_to_shpt_number = {
+        r["id"]: r.get("fields", {}).get("Shipment Number", "")
+        for r in shipment_records
+    }
+
     quotes = []
     for record in records:
         fields = record.get("fields", {})
+
+        linked_ids = fields.get("Shipments", [])
+        if not isinstance(linked_ids, list):
+            linked_ids = []
+        linked_numbers = [id_to_shpt_number.get(rid, rid) for rid in linked_ids]
+        linked_shipments = ", ".join([str(n) for n in linked_numbers if n]) or "—"
+
         quotes.append({
             "id": record["id"],
             "quote_number": fields.get("Q-", ""),
@@ -148,25 +160,34 @@ def get_pricing():
             "sales_value": fields.get("Sales Value", 0),
             "freight_pct": fields.get("Freight %", 0),
             "profit": fields.get("Profit $", 0),
-            "status": fields.get("Status", "")
+            "status": fields.get("Status", ""),
+            "linked_shipments": linked_shipments,
         })
     return quotes
 
 def get_updates_log():
     records = get_records(UPDATES_LOG_TABLE)
+    shipment_records = get_records(SHIPMENTS_TABLE)
+    id_to_shpt_number = {
+        r["id"]: r.get("fields", {}).get("Shipment Number", "")
+        for r in shipment_records
+    }
+
     updates = []
     for record in records:
         fields = record.get("fields", {})
-        shipment_raw = fields.get("Shipment", "")
-        if isinstance(shipment_raw, list):
-            shipment = shipment_raw[0] if shipment_raw else ""
-        else:
-            shipment = shipment_raw
+
+        # "Shipment" is multipleRecordLinks -> list of record IDs
+        shipment_ids = fields.get("Shipment", [])
+        if not isinstance(shipment_ids, list):
+            shipment_ids = []
+        shipment_numbers = [id_to_shpt_number.get(rid, rid) for rid in shipment_ids]
+        shipment = ", ".join([str(n) for n in shipment_numbers if n]) or ""
+
+        # "Linked Load" is a lookup field (array)
         load_raw = fields.get("Linked Load", "")
-        if isinstance(load_raw, list):
-            load = load_raw[0] if load_raw else ""
-        else:
-            load = load_raw
+        load = _resolve_list_field(load_raw)
+
         updates.append({
             "id": record["id"],
             "update": fields.get("Update", ""),
