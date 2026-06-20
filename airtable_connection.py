@@ -37,6 +37,12 @@ def get_records(table_id, filter_formula=None):
             break
     return all_records
 
+def _resolve_list_field(raw):
+    """Helper: Airtable lookup fields often return lists. Flatten to a display string."""
+    if isinstance(raw, list):
+        return ", ".join([str(x) for x in raw if x])
+    return str(raw) if raw else ""
+
 def get_active_shipments():
     formula = "OR({Warehouse Status}='Pending Print', {Warehouse Status}='In Progress', {Warehouse Status}='Ready')"
     records = get_records(SHIPMENTS_TABLE, formula)
@@ -47,13 +53,18 @@ def get_active_shipments():
             "id": record["id"],
             "shipment_number": fields.get("Shipment Number", ""),
             "customer": fields.get("Customer", ""),
+            "warehouse": fields.get("Warehouse", ""),
+            "address": fields.get("Address", ""),
             "city": fields.get("City", ""),
             "state": fields.get("State", ""),
             "zip_code": fields.get("ZIP Code", ""),
             "weight": fields.get("Weight", 0),
             "bundles": fields.get("Bundles", 0),
+            "elbows": fields.get("Elbows", 0),
+            "dimensions": fields.get("Dimensions", ""),
             "trailer_type": fields.get("Trailer Type Needed", ""),
             "warehouse_status": fields.get("Warehouse Status", ""),
+            "pick_up": fields.get("Pick Up", "No"),
             "delivery_date": fields.get("Requested Delivery Date", ""),
             "order_date": fields.get("Order Date", "")
         })
@@ -68,23 +79,22 @@ def get_all_shipments():
             "id": record["id"],
             "shipment_number": fields.get("Shipment Number", ""),
             "customer": fields.get("Customer", ""),
+            "warehouse": fields.get("Warehouse", ""),
+            "address": fields.get("Address", ""),
             "city": fields.get("City", ""),
             "state": fields.get("State", ""),
             "zip_code": fields.get("ZIP Code", ""),
             "weight": fields.get("Weight", 0),
             "bundles": fields.get("Bundles", 0),
+            "elbows": fields.get("Elbows", 0),
+            "dimensions": fields.get("Dimensions", ""),
             "trailer_type": fields.get("Trailer Type Needed", ""),
             "warehouse_status": fields.get("Warehouse Status", ""),
+            "pick_up": fields.get("Pick Up", "No"),
             "delivery_date": fields.get("Requested Delivery Date", ""),
             "order_date": fields.get("Order Date", "")
         })
     return shipments
-
-def _resolve_list_field(raw):
-    """Helper: Airtable lookup fields often return lists. Flatten to a display string."""
-    if isinstance(raw, list):
-        return ", ".join([str(x) for x in raw if x])
-    return str(raw) if raw else ""
 
 def get_loads():
     records = get_records(LOADS_TABLE)
