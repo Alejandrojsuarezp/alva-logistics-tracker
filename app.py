@@ -396,6 +396,7 @@ if pagina == "Dashboard":
                 rows += f"""<tr>
                     <td>{l.get('load_number','—')}</td>
                     <td>{l.get('carrier','—')}</td>
+                    <td>{l.get('linked_shipments','—')}</td>
                     <td>{fmt_weight(l.get('total_weight',''))}</td>
                     <td>{badge_html(l.get('load_status',''))}</td>
                     <td>{l.get('eta_pickup','—')}</td>
@@ -403,7 +404,7 @@ if pagina == "Dashboard":
             st.markdown(f"""
             <div class="xlt-table-wrap">
             <table class="xlt-table">
-            <thead><tr><th>Load #</th><th>Carrier</th><th>Weight</th><th>Status</th><th>ETA Pickup</th></tr></thead>
+            <thead><tr><th>Load #</th><th>Carrier</th><th>Shipments</th><th>Weight</th><th>Status</th><th>ETA Pickup</th></tr></thead>
             <tbody>{rows}</tbody>
             </table></div>""", unsafe_allow_html=True)
         else:
