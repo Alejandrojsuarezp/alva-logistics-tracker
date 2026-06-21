@@ -934,12 +934,12 @@ elif pagina == "Updates Log":
 # ── CONSOLIDATIONS ───────────────────────────────────────────────────────────
 elif pagina == "Consolidations":
     st.markdown('<div class="xlt-page-title">Consolidation Detector</div>', unsafe_allow_html=True)
-    st.markdown('<div class="xlt-page-sub">Analyzes active shipments and detects consolidation opportunities</div>', unsafe_allow_html=True)
+    st.markdown('<div class="xlt-page-sub">Analyzes active shipments per warehouse and detects consolidation opportunities</div>', unsafe_allow_html=True)
 
     st.markdown("""
     <div class="info-box">
         Analyzes shipments with status <strong>Pending Print</strong>, <strong>In Progress</strong> and <strong>Ready</strong> (excludes Pick Up = Yes).
-        Detects three types of opportunities:<br>
+        Texas and Florida shipments are never compared against each other — results are grouped by warehouse.<br>
         <strong>Type A</strong> — Two shipments without a load, close destinations, fit in one trailer<br>
         <strong>Type B</strong> — A shipment without load that fits in an existing load with available space<br>
         <strong>Type C</strong> — Two shipments with small trailers assigned that together justify upgrading to a larger trailer
@@ -947,24 +947,55 @@ elif pagina == "Consolidations":
     """, unsafe_allow_html=True)
 
     if st.button("Detect Opportunities", type="primary"):
-        with st.spinner("Analyzing active shipments..."):
+        with st.spinner("Analyzing active shipments by warehouse..."):
             st.session_state["consolidaciones"] = detectar_consolidaciones()
 
     if "consolidaciones" in st.session_state:
-        oportunidades = st.session_state["consolidaciones"]
-        if oportunidades:
-            st.success(f"{len(oportunidades)} opportunity(ies) detected")
-            for i, op in enumerate(oportunidades, 1):
-                with st.expander(f"Opportunity #{i} — {op['destino_1']} + {op['destino_2']}"):
-                    c1, c2, c3 = st.columns(3)
-                    c1.metric("Distance", f"{op['distancia_millas']} miles")
-                    c2.metric("Combined weight", f"{op['peso_combinado']:,} lbs")
-                    c3.metric("Available space", f"{op['espacio_disponible']:,} lbs")
-                    st.markdown(f"**Shipment 1:** {op['shipment_1']} → {op['destino_1']} ({op['peso_1']:,} lbs)")
-                    st.markdown(f"**Shipment 2:** {op['shipment_2']} → {op['destino_2']} ({op['peso_2']:,} lbs)")
-                    st.markdown(f"**Suggested trailer:** {op['trailer_sugerido']}")
+        resultado = st.session_state["consolidaciones"]
+        total = sum(len(v) for v in resultado.values())
+
+        if total:
+            st.success(f"{total} opportunity(ies) detected across both warehouses")
         else:
             st.warning("No consolidation opportunities detected with current active shipments.")
+
+        for warehouse in ["Texas", "Florida"]:
+            oportunidades = resultado.get(warehouse, [])
+            st.markdown(f'<div class="xlt-section-title">📍 {warehouse} Warehouse — {len(oportunidades)} opportunity(ies)</div>', unsafe_allow_html=True)
+
+            if not oportunidades:
+                st.info(f"No opportunities detected for {warehouse}.")
+                continue
+
+            for i, op in enumerate(oportunidades, 1):
+                tipo = op.get("tipo", "A")
+                if tipo in ("A", "C"):
+                    title = f"#{i} — Type {tipo} — {op['destino_1']} + {op['destino_2']}"
+                else:
+                    title = f"#{i} — Type {tipo} — {op['destino_1']} → {op.get('load_existente','')}"
+
+                with st.expander(title):
+                    st.markdown(f"*{op['descripcion']}*")
+
+                    if tipo in ("A", "C"):
+                        c1, c2, c3 = st.columns(3)
+                        c1.metric("Distance", f"{op['distancia_millas']} miles")
+                        c2.metric("Combined weight", f"{op['peso_combinado']:,} lbs")
+                        c3.metric("Suggested trailer", op['trailer_sugerido'] if tipo == "A" else "Upgrade")
+                        st.markdown(f"**Shipment 1:** {op['shipment_1']} → {op['destino_1']} ({op['peso_1']:,} lbs)" +
+                                    (f" — currently {op.get('trailer_actual_1','')}" if tipo == "C" else ""))
+                        st.markdown(f"**Shipment 2:** {op['shipment_2']} → {op['destino_2']} ({op['peso_2']:,} lbs)" +
+                                    (f" — currently {op.get('trailer_actual_2','')}" if tipo == "C" else ""))
+                        if tipo == "C":
+                            st.caption("Exact savings vary by broker and route — review pricing before committing.")
+                        st.markdown(f"**Suggested:** {op['trailer_sugerido']}")
+                    elif tipo == "B":
+                        c1, c2 = st.columns(2)
+                        c1.metric("Distance", f"{op['distancia_millas']} miles")
+                        c2.metric("Available space in load", f"{op['espacio_disponible_en_load']:,} lbs")
+                        st.markdown(f"**Shipment:** {op['shipment_1']} → {op['destino_1']} ({op['peso_1']:,} lbs)")
+                        st.markdown(f"**Existing Load:** {op['load_existente']} → {op.get('load_destino','')}")
+                        st.markdown(f"**Suggested:** {op['trailer_sugerido']}")
 
 # ── TRUCK BUILDER ─────────────────────────────────────────────────────────────
 elif pagina == "Truck Builder":
