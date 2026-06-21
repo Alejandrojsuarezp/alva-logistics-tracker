@@ -20,19 +20,15 @@ st.set_page_config(
 # ── GLOBAL CSS ─────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
-/* Import font */
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap');
 
-/* Reset & base */
 html, body, [class*="css"] {
     font-family: 'DM Sans', sans-serif;
 }
 
-/* Hide Streamlit default elements */
 #MainMenu, footer, header { visibility: hidden; }
 .block-container { padding: 1.5rem 2rem 2rem 2rem !important; }
 
-/* ── SIDEBAR ── */
 section[data-testid="stSidebar"] {
     background: #ffffff;
     border-right: 1px solid #f0f0f0;
@@ -43,7 +39,6 @@ section[data-testid="stSidebar"] > div {
     padding: 0 !important;
 }
 
-/* Brand */
 .xlt-brand {
     display: flex;
     align-items: center;
@@ -66,7 +61,6 @@ section[data-testid="stSidebar"] > div {
     line-height: 1.2;
 }
 
-/* Nav section label */
 .xlt-nav-section {
     font-size: 11px;
     font-weight: 600;
@@ -76,14 +70,12 @@ section[data-testid="stSidebar"] > div {
     padding: 10px 16px 4px 16px;
 }
 
-/* Nav divider */
 .xlt-nav-div {
     height: 1px;
     background: #f0f0f0;
     margin: 6px 12px;
 }
 
-/* Override Streamlit radio */
 div[data-testid="stSidebarNav"] { display: none; }
 div[data-testid="stSidebar"] div[role="radiogroup"] label {
     font-size: 14px !important;
@@ -93,7 +85,6 @@ div[data-testid="stSidebar"] div[role="radiogroup"] label p {
     font-size: 14px !important;
 }
 
-/* Status badges */
 .badge {
     display: inline-block;
     padding: 3px 10px;
@@ -105,8 +96,8 @@ div[data-testid="stSidebar"] div[role="radiogroup"] label p {
 .badge-progress { background: #FFFBEB; color: #b45309; }
 .badge-ready    { background: #F0FDF4; color: #15803d; }
 .badge-shipped  { background: #F8FAFC; color: #64748b; }
+.badge-pickup   { background: #F5F3FF; color: #6d28d9; }
 
-/* Page title */
 .xlt-page-title {
     font-size: 24px;
     font-weight: 600;
@@ -119,7 +110,6 @@ div[data-testid="stSidebar"] div[role="radiogroup"] label p {
     margin-bottom: 1.25rem;
 }
 
-/* Metric card */
 .xlt-metric {
     background: #ffffff;
     border: 1px solid #f0f0f0;
@@ -148,12 +138,12 @@ div[data-testid="stSidebar"] div[role="radiogroup"] label p {
     margin-top: 4px;
 }
 
-/* Table */
 .xlt-table-wrap {
     background: #ffffff;
     border: 1px solid #f0f0f0;
     border-radius: 10px;
     overflow: hidden;
+    overflow-x: auto;
 }
 .xlt-table {
     width: 100%;
@@ -168,17 +158,18 @@ div[data-testid="stSidebar"] div[role="radiogroup"] label p {
     font-weight: 500;
     color: #94a3b8;
     border-bottom: 1px solid #f0f0f0;
+    white-space: nowrap;
 }
 .xlt-table td {
     padding: 10px 16px;
     border-bottom: 1px solid #f8f8f8;
     color: #0f172a;
     font-size: 14px;
+    white-space: nowrap;
 }
 .xlt-table tr:last-child td { border-bottom: none; }
 .xlt-table tr:hover td { background: #fafbff; }
 
-/* Section card */
 .xlt-section-card {
     background: #ffffff;
     border: 1px solid #f0f0f0;
@@ -196,7 +187,6 @@ div[data-testid="stSidebar"] div[role="radiogroup"] label p {
     gap: 6px;
 }
 
-/* Form styling */
 .xlt-form-card {
     background: #ffffff;
     border: 1px solid #e2e8f0;
@@ -233,7 +223,6 @@ div[data-testid="stSidebar"] div[role="radiogroup"] label p {
     margin-bottom: 8px;
 }
 
-/* Streamlit widget overrides */
 div[data-testid="stSelectbox"] label,
 div[data-testid="stTextInput"] label,
 div[data-testid="stNumberInput"] label,
@@ -263,6 +252,19 @@ HEADERS = {
 }
 BASE_ID = st.secrets["BASE_ID"]
 
+# ── REFERENCE LISTS — must match Airtable single-select options exactly ────
+CARRIERS = ["Cowtown Logistics", "TQL", "Ecologistics", "Worldwide Logistics", "ICM Logistic", "West Jersey Express"]
+TRAILER_TYPES = ["Hotshot 40'", "Flatbed 48'", "Flatbed 53'", "Stepdeck 48'", "Stepdeck 53'", "Conestoga 48'", "Conestoga 53'", "LTL"]
+UPDATE_TYPES = ["Status Change", "Delay", "Documentation", "Communication", "Issue/Problem", "Billing"]
+RESPONSIBLE_OPTIONS = ["Warehouse", "Logistics", "Customer Service", "Carrier", "Customer"]
+WAREHOUSE_OPTIONS = ["Texas", "Florida"]
+PICKUP_OPTIONS = ["No", "Yes"]
+US_STATES = [
+    "TX","FL","AL","AR","AZ","CA","CO","GA","ID","IL","IN","KS","KY",
+    "LA","MI","MN","MO","MS","MT","NC","ND","NE","NM","NV","OH","OK",
+    "OR","SC","SD","TN","UT","VA","WA","WI","WY"
+]
+
 # ── HELPER FUNCTIONS ────────────────────────────────────────────────────────
 def badge_html(status):
     if isinstance(status, list):
@@ -278,6 +280,7 @@ def badge_html(status):
         "Lost":          "badge-shipped",
         "Scheduled":     "badge-pending",
         "In Transit":    "badge-progress",
+        "Yes":           "badge-pickup",
     }.get(status, "badge-shipped")
     return f'<span class="badge {cls}">{status}</span>'
 
@@ -330,7 +333,7 @@ with st.sidebar:
 # ── DASHBOARD ───────────────────────────────────────────────────────────────
 if pagina == "Dashboard":
     st.markdown('<div class="xlt-page-title">Operations Dashboard</div>', unsafe_allow_html=True)
-    st.markdown(f'<div class="xlt-page-sub">{datetime.now().strftime("%A, %B %d %Y")} · Texas</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="xlt-page-sub">{datetime.now().strftime("%A, %B %d %Y")} · Texas & Florida</div>', unsafe_allow_html=True)
 
     with st.spinner("Loading data..."):
         shipments = get_all_shipments()
@@ -342,7 +345,6 @@ if pagina == "Dashboard":
     shipped    = [s for s in shipments if s["warehouse_status"] == "Shipped"]
     active_lds = [l for l in loads if l["load_status"] not in ("Shipped", "Delivered")]
 
-    # Metrics
     c1, c2, c3, c4, c5 = st.columns(5)
     metrics = [
         (c1, "⏳", "#EFF6FF", "#185FA5", len(pending),   "Pending Print"),
@@ -364,7 +366,6 @@ if pagina == "Dashboard":
 
     col_l, col_r = st.columns(2)
 
-    # Active Shipments
     with col_l:
         activos = pending + in_prog + ready
         st.markdown('<div class="xlt-section-title">🚢 Active Shipments</div>', unsafe_allow_html=True)
@@ -374,6 +375,7 @@ if pagina == "Dashboard":
                 rows += f"""<tr>
                     <td>{s.get('shipment_number','—')}</td>
                     <td>{s.get('customer','—')}</td>
+                    <td>{s.get('warehouse','—')}</td>
                     <td>{s.get('city','')}, {s.get('state','')}</td>
                     <td>{fmt_weight(s.get('weight',''))}</td>
                     <td>{badge_html(s.get('warehouse_status',''))}</td>
@@ -381,13 +383,12 @@ if pagina == "Dashboard":
             st.markdown(f"""
             <div class="xlt-table-wrap">
             <table class="xlt-table">
-            <thead><tr><th>Shipment</th><th>Customer</th><th>Destination</th><th>Weight</th><th>Status</th></tr></thead>
+            <thead><tr><th>Shipment</th><th>Customer</th><th>Warehouse</th><th>Destination</th><th>Weight</th><th>Status</th></tr></thead>
             <tbody>{rows}</tbody>
             </table></div>""", unsafe_allow_html=True)
         else:
             st.info("No active shipments.")
 
-    # Active Loads
     with col_r:
         st.markdown('<div class="xlt-section-title">📦 Active Loads</div>', unsafe_allow_html=True)
         if active_lds:
@@ -417,37 +418,43 @@ elif pagina == "Shipments":
     with st.spinner("Loading shipments..."):
         shipments = get_all_shipments()
 
-    # Filter + count
-    col_f, col_btn = st.columns([4, 1])
-    with col_f:
+    col_f1, col_f2, col_btn = st.columns([2, 2, 1])
+    with col_f1:
         filtro = st.selectbox("Filter by status", ["All","Pending Print","In Progress","Ready","Shipped"], label_visibility="collapsed")
+    with col_f2:
+        filtro_wh = st.selectbox("Filter by warehouse", ["All Warehouses","Texas","Florida"], label_visibility="collapsed")
     with col_btn:
         show_form = st.button("＋  New Shipment", type="primary", use_container_width=True)
 
     filtered = [s for s in shipments if filtro == "All" or s["warehouse_status"] == filtro]
+    if filtro_wh != "All Warehouses":
+        filtered = [s for s in filtered if s.get("warehouse") == filtro_wh]
     st.markdown(f'<div class="xlt-page-sub">{len(filtered)} shipments</div>', unsafe_allow_html=True)
 
-    # Table
     if filtered:
         rows = ""
         for s in filtered:
+            pickup_badge = badge_html("Yes") if s.get("pick_up") == "Yes" else "—"
             rows += f"""<tr>
                 <td><strong>{s.get('shipment_number','—')}</strong></td>
                 <td>{s.get('customer','—')}</td>
+                <td>{s.get('warehouse','—')}</td>
+                <td>{s.get('address','—')}</td>
                 <td>{s.get('city','')}, {s.get('state','')}</td>
-                <td>{s.get('zip_code','—')}</td>
                 <td>{fmt_weight(s.get('weight',''))}</td>
                 <td>{s.get('bundles','—')}</td>
+                <td>{s.get('elbows','—')}</td>
                 <td>{s.get('trailer_type','—')}</td>
                 <td>{fmt_date(s.get('delivery_date',''))}</td>
+                <td>{pickup_badge}</td>
                 <td>{badge_html(s.get('warehouse_status',''))}</td>
             </tr>"""
         st.markdown(f"""
         <div class="xlt-table-wrap">
         <table class="xlt-table">
         <thead><tr>
-            <th>Shipment #</th><th>Customer</th><th>City, State</th><th>ZIP</th>
-            <th>Weight</th><th>Bundles</th><th>Trailer</th><th>Delivery</th><th>Status</th>
+            <th>Shipment #</th><th>Customer</th><th>Warehouse</th><th>Address</th><th>City, State</th>
+            <th>Weight</th><th>Bundles</th><th>Elbows</th><th>Trailer</th><th>Delivery</th><th>Pick Up</th><th>Status</th>
         </tr></thead>
         <tbody>{rows}</tbody>
         </table></div>""", unsafe_allow_html=True)
@@ -456,7 +463,6 @@ elif pagina == "Shipments":
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # Update Status
     with st.expander("✏️  Update Warehouse Status", expanded=False):
         col_s, col_ns = st.columns(2)
         with col_s:
@@ -473,7 +479,6 @@ elif pagina == "Shipments":
                 else:
                     st.error(f"Error {r.status_code}: {r.text}")
 
-    # New Shipment Form
     if show_form:
         st.session_state["show_shipment_form"] = True
 
@@ -483,7 +488,7 @@ elif pagina == "Shipments":
 
         c1, c2 = st.columns(2)
         with c1:
-            f_shipment_num = st.text_input("Shipment Number *", placeholder="e.g. SH-0042")
+            f_shipment_num = st.text_input("Shipment Number *", placeholder="e.g. SHPT-0012345")
         with c2:
             f_customer = st.text_input("Customer *", placeholder="Company name")
 
@@ -493,28 +498,35 @@ elif pagina == "Shipments":
         with c2:
             f_delivery = st.date_input("Requested Delivery Date *", min_value=date.today())
 
+        c1, c2 = st.columns(2)
+        with c1:
+            f_warehouse = st.selectbox("Warehouse *", WAREHOUSE_OPTIONS)
+        with c2:
+            f_address = st.text_input("Address", placeholder="Street address")
+
         c1, c2, c3 = st.columns(3)
         with c1:
             f_city = st.text_input("City *", placeholder="Houston")
         with c2:
-            f_state = st.selectbox("State *", [
-                "TX","FL","AL","AR","AZ","CA","CO","GA","ID","IL","IN","KS","KY",
-                "LA","MI","MN","MO","MS","MT","NC","ND","NE","NM","NV","OH","OK",
-                "OR","SC","SD","TN","UT","VA","WA","WI","WY"
-            ])
+            f_state = st.selectbox("State *", US_STATES)
         with c3:
             f_zip = st.text_input("ZIP Code", placeholder="77001")
 
-        c1, c2, c3 = st.columns(3)
+        c1, c2 = st.columns(2)
         with c1:
-            f_trailer = st.selectbox("Trailer Type Needed *", [
-                "Flatbed 48'","Flatbed 53'","Stepdeck 48'","Stepdeck 53'","Hotshot 40'"
-            ])
+            f_trailer = st.selectbox("Trailer Type Needed *", TRAILER_TYPES)
         with c2:
             f_weight = st.number_input("Weight (lbs) *", min_value=0, step=100)
-        with c3:
-            f_bundles = st.number_input("Bundles *", min_value=0, step=1)
 
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            f_bundles = st.number_input("Bundles", min_value=0, step=1)
+        with c2:
+            f_elbows = st.number_input("Elbows", min_value=0, step=1)
+        with c3:
+            f_pickup = st.selectbox("Pick Up", PICKUP_OPTIONS)
+
+        f_dimensions = st.text_input("Dimensions", placeholder="Pallet/crate dimensions once ready (e.g. 48x40x36 in)")
         f_notes = st.text_area("Notes", placeholder="Special instructions, gate codes, contacts...", height=80)
 
         col_cancel, col_spacer, col_save = st.columns([1, 3, 1])
@@ -524,22 +536,27 @@ elif pagina == "Shipments":
                 st.rerun()
         with col_save:
             if st.button("Create Shipment", type="primary", use_container_width=True):
-                if not f_shipment_num or not f_customer or not f_city:
-                    st.error("Please fill in all required fields (*).")
+                if not f_shipment_num or not f_customer or not f_city or (f_bundles == 0 and f_elbows == 0):
+                    st.error("Please fill in all required fields (*). Bundles or Elbows must be greater than 0.")
                 else:
                     fields = {
                         "Shipment Number": f_shipment_num,
                         "Customer": f_customer,
+                        "Warehouse": f_warehouse,
                         "City": f_city,
                         "State": f_state,
                         "Trailer Type Needed": f_trailer,
                         "Weight": f_weight,
-                        "Bundles": int(f_bundles),
                         "Warehouse Status": "Pending Print",
                         "Order Date": date.today().isoformat(),
                         "Requested Delivery Date": f_delivery.isoformat(),
+                        "Pick Up": f_pickup,
                         "Notes": f_notes,
                     }
+                    if f_bundles: fields["Bundles"] = int(f_bundles)
+                    if f_elbows: fields["Elbows"] = int(f_elbows)
+                    if f_address: fields["Address"] = f_address
+                    if f_dimensions: fields["Dimensions"] = f_dimensions
                     if f_zip:
                         try:
                             fields["ZIP Code"] = int(f_zip)
@@ -562,8 +579,8 @@ elif pagina == "Loads":
     st.markdown('<div class="xlt-page-title">Loads</div>', unsafe_allow_html=True)
 
     with st.spinner("Loading..."):
-        loads    = get_loads()
-        quotes   = get_pricing()
+        loads     = get_loads()
+        quotes    = get_pricing()
         shipments = get_all_shipments()
 
     col_f, col_btn = st.columns([4, 1])
@@ -581,19 +598,19 @@ elif pagina == "Loads":
             rows += f"""<tr>
                 <td><strong>{l.get('load_number','—')}</strong></td>
                 <td>{l.get('carrier','—')}</td>
+                <td>{l.get('linked_shipments','—')}</td>
                 <td>{fmt_weight(l.get('total_weight',''))}</td>
                 <td>{l.get('total_bundles','—')}</td>
-                <td>{l.get('load_status','—')}</td>
+                <td>{badge_html(l.get('load_status',''))}</td>
                 <td>{l.get('eta_pickup','—')}</td>
                 <td>${fmt_weight(l.get('freight_cost',''))}</td>
-                <td>${fmt_weight(l.get('sales_value',''))}</td>
             </tr>"""
         st.markdown(f"""
         <div class="xlt-table-wrap">
         <table class="xlt-table">
         <thead><tr>
-            <th>Load #</th><th>Carrier</th><th>Weight</th><th>Bundles</th>
-            <th>Status</th><th>ETA Pickup</th><th>Freight Cost</th><th>Sales Value</th>
+            <th>Load #</th><th>Carrier</th><th>Shipments</th><th>Weight</th><th>Bundles</th>
+            <th>Status</th><th>ETA Pickup</th><th>Freight Cost</th>
         </tr></thead>
         <tbody>{rows}</tbody>
         </table></div>""", unsafe_allow_html=True)
@@ -602,7 +619,6 @@ elif pagina == "Loads":
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # Update Load Status
     with st.expander("✏️  Update Load Status", expanded=False):
         if loads:
             col_l, col_s = st.columns(2)
@@ -622,7 +638,6 @@ elif pagina == "Loads":
         else:
             st.info("No loads available.")
 
-    # New Load Form
     if show_load_form:
         st.session_state["show_load_form"] = True
 
@@ -632,16 +647,14 @@ elif pagina == "Loads":
 
         c1, c2 = st.columns(2)
         with c1:
-            f_load_num = st.text_input("Load Number * (from broker)", placeholder="e.g. LD-00123")
+            f_load_num = st.text_input("Load Number * (from broker)", placeholder="e.g. LOAD 27617")
         with c2:
             f_load_status = st.selectbox("Load Status *", ["Scheduled","In Transit","Shipped"])
 
-        # Linked Shipments — multiselect
         ship_options = [f"{s['shipment_number']} — {s['customer']} · {s['city']}, {s['state']}"
-                        for s in shipments if s["warehouse_status"] != "Shipped"]
+                        for s in shipments if s["warehouse_status"] != "Shipped" and s.get("pick_up") != "Yes"]
         f_shipments = st.multiselect("Linked Shipments *", ship_options)
 
-        # Selected Quote — only Pending quotes
         pending_quotes = [q for q in quotes if q.get("status") == "Pending"]
         quote_options  = [f"Q-{q['quote_number']} — {q['carrier']} · ${fmt_weight(q.get('freight_cost',''))}"
                           for q in pending_quotes]
@@ -649,9 +662,7 @@ elif pagina == "Loads":
 
         c1, c2 = st.columns(2)
         with c1:
-            f_trailer_ld = st.selectbox("Trailer Type *", [
-                "Flatbed 48'","Flatbed 53'","Stepdeck 48'","Stepdeck 53'","Hotshot 40'"
-            ])
+            f_trailer_ld = st.selectbox("Trailer Type *", TRAILER_TYPES)
         with c2:
             f_eta = st.date_input("ETA Pickup *", min_value=date.today())
 
@@ -665,7 +676,6 @@ elif pagina == "Loads":
                 if not f_load_num or not f_shipments or f_quote == "— Select —":
                     st.error("Please fill in all required fields (*).")
                 else:
-                    # Get record IDs
                     ship_numbers = [s.split(" — ")[0] for s in f_shipments]
                     ship_ids = [s["id"] for s in shipments if s["shipment_number"] in ship_numbers]
                     q_number = f_quote.split(" — ")[0].replace("Q-","")
@@ -714,6 +724,7 @@ elif pagina == "Pricing":
         for q in filtered_pr:
             rows += f"""<tr>
                 <td><strong>Q-{q.get('quote_number','—')}</strong></td>
+                <td>{q.get('linked_shipments','—')}</td>
                 <td>{q.get('carrier','—')}</td>
                 <td>${fmt_weight(q.get('freight_cost',''))}</td>
                 <td>${fmt_weight(q.get('sales_value',''))}</td>
@@ -725,7 +736,7 @@ elif pagina == "Pricing":
         <div class="xlt-table-wrap">
         <table class="xlt-table">
         <thead><tr>
-            <th>Quote #</th><th>Carrier</th><th>Freight Cost</th><th>Sales Value</th>
+            <th>Quote #</th><th>Shipments</th><th>Carrier</th><th>Freight Cost</th><th>Sales Value</th>
             <th>Freight %</th><th>Profit</th><th>Status</th>
         </tr></thead>
         <tbody>{rows}</tbody>
@@ -735,7 +746,6 @@ elif pagina == "Pricing":
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # Update Quote Status
     with st.expander("✏️  Update Quote Status", expanded=False):
         if quotes:
             col_q, col_s = st.columns(2)
@@ -756,7 +766,6 @@ elif pagina == "Pricing":
         else:
             st.info("No quotes available.")
 
-    # New Quote Form
     if show_quote_form:
         st.session_state["show_quote_form"] = True
 
@@ -764,18 +773,13 @@ elif pagina == "Pricing":
         st.markdown('<div class="xlt-form-card">', unsafe_allow_html=True)
         st.markdown('<div class="xlt-form-title">➕ New Quote <span class="auto-badge">Q- # auto-generated · Freight % and Profit auto-calculated by Airtable</span></div>', unsafe_allow_html=True)
 
-        # Linked Shipments
         ship_options_pr = [f"{s['shipment_number']} — {s['customer']} · {s['city']}, {s['state']}"
-                           for s in shipments if s["warehouse_status"] != "Shipped"]
+                           for s in shipments if s["warehouse_status"] != "Shipped" and s.get("pick_up") != "Yes"]
         f_ship_pr = st.multiselect("Linked Shipments *", ship_options_pr)
 
         c1, c2 = st.columns(2)
         with c1:
-            # Carrier list from Airtable single select — common carriers
-            f_carrier = st.selectbox("Carrier *", [
-                "Cowntown Logistics","TQL","Ecologistics",
-                "Worldwide Logistics","ICM Logistics","West Jersey Express"
-            ])
+            f_carrier = st.selectbox("Carrier *", CARRIERS)
         with c2:
             f_quote_status = st.selectbox("Status *", ["Pending","Selected","Lost"])
 
@@ -832,7 +836,7 @@ elif pagina == "Updates Log":
 
     col_f, col_btn = st.columns([4, 1])
     with col_f:
-        filtro_ul = st.selectbox("Filter", ["All","Status Change","Note","Issue","Flagged"], label_visibility="collapsed")
+        filtro_ul = st.selectbox("Filter", ["All"] + UPDATE_TYPES + ["Flagged"], label_visibility="collapsed")
     with col_btn:
         show_update_form = st.button("＋  New Entry", type="primary", use_container_width=True)
 
@@ -873,7 +877,6 @@ elif pagina == "Updates Log":
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # New Entry Form
     if show_update_form:
         st.session_state["show_update_form"] = True
 
@@ -891,9 +894,9 @@ elif pagina == "Updates Log":
 
         c1, c2 = st.columns(2)
         with c1:
-            f_type_ul = st.selectbox("Type *", ["Status Change","Note","Issue","Other"])
+            f_type_ul = st.selectbox("Type *", UPDATE_TYPES)
         with c2:
-            f_resp_ul = st.selectbox("Responsible *", ["Alejandro","Yeral","Daniel","Humberto","Other"])
+            f_resp_ul = st.selectbox("Responsible *", RESPONSIBLE_OPTIONS)
 
         f_desc_ul = st.text_area("Description *", placeholder="What happened or was updated...", height=80)
         f_flag_ul = st.checkbox("⚑ Attention Flag — requires follow-up")
@@ -914,14 +917,9 @@ elif pagina == "Updates Log":
                         "Description": f_desc_ul,
                         "Responsible": f_resp_ul,
                         "Attention Flag": f_flag_ul,
-                        "Date/Time": datetime.now().isoformat(),
                     }
                     if ship_obj:
                         fields["Shipment"] = [ship_obj["id"]]
-                    if f_load_ul != "— None —":
-                        load_obj = next((l for l in loads if l["load_number"] == f_load_ul), None)
-                        if load_obj:
-                            fields["Linked Load"] = [load_obj["id"]]
 
                     r = create_record(UPDATES_LOG_TABLE, fields)
                     if r.status_code in (200, 201):
@@ -940,7 +938,7 @@ elif pagina == "Consolidations":
 
     st.markdown("""
     <div class="info-box">
-        Analyzes shipments with status <strong>Pending Print</strong>, <strong>In Progress</strong> and <strong>Ready</strong>.
+        Analyzes shipments with status <strong>Pending Print</strong>, <strong>In Progress</strong> and <strong>Ready</strong> (excludes Pick Up = Yes).
         Detects three types of opportunities:<br>
         <strong>Type A</strong> — Two shipments without a load, close destinations, fit in one trailer<br>
         <strong>Type B</strong> — A shipment without load that fits in an existing load with available space<br>
