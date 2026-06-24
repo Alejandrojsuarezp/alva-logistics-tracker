@@ -46,9 +46,27 @@ def _resolve_list_field(raw):
 def get_active_shipments():
     formula = "OR({Warehouse Status}='Pending Print', {Warehouse Status}='In Progress', {Warehouse Status}='Ready')"
     records = get_records(SHIPMENTS_TABLE, formula)
+
+    # Build load_id -> load_number map to resolve linked loads
+    load_records = get_records(LOADS_TABLE)
+    id_to_load_number = {
+        r["id"]: r.get("fields", {}).get("Load Number", "")
+        for r in load_records
+    }
+
     shipments = []
     for record in records:
         fields = record.get("fields", {})
+
+        # Check if this shipment has a load assigned
+        # The field "Loads" is the reverse link from Loads table
+        linked_load_ids = fields.get("Loads", [])
+        if not isinstance(linked_load_ids, list):
+            linked_load_ids = []
+        # Resolve load IDs to load numbers
+        load_numbers = [id_to_load_number.get(rid, "") for rid in linked_load_ids if rid]
+        load_assigned = ", ".join([n for n in load_numbers if n]) if load_numbers else ""
+
         shipments.append({
             "id": record["id"],
             "shipment_number": fields.get("Shipment Number", ""),
@@ -66,7 +84,8 @@ def get_active_shipments():
             "warehouse_status": fields.get("Warehouse Status", ""),
             "pick_up": fields.get("Pick Up", "No"),
             "delivery_date": fields.get("Requested Delivery Date", ""),
-            "order_date": fields.get("Order Date", "")
+            "order_date": fields.get("Order Date", ""),
+            "load_assigned": load_assigned,
         })
     return shipments
 

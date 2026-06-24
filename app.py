@@ -981,20 +981,75 @@ elif pagina == "Consolidations":
                         c1, c2, c3 = st.columns(3)
                         c1.metric("Distance", f"{op['distancia_millas']} miles")
                         c2.metric("Combined weight", f"{op['peso_combinado']:,} lbs")
-                        c3.metric("Suggested trailer", op['trailer_sugerido'] if tipo == "A" else "Upgrade")
-                        st.markdown(f"**Shipment 1:** {op['shipment_1']} → {op['destino_1']} ({op['peso_1']:,} lbs)" +
-                                    (f" — currently {op.get('trailer_actual_1','')}" if tipo == "C" else ""))
-                        st.markdown(f"**Shipment 2:** {op['shipment_2']} → {op['destino_2']} ({op['peso_2']:,} lbs)" +
-                                    (f" — currently {op.get('trailer_actual_2','')}" if tipo == "C" else ""))
+                        c3.metric("Available space", f"{op.get('espacio_disponible', 0):,} lbs")
+
+                        def _status_badge(status):
+                            colors = {
+                                "Ready": "background:#F0FDF4;color:#15803d",
+                                "In Progress": "background:#FFFBEB;color:#b45309",
+                                "Pending Print": "background:#EFF6FF;color:#1d4ed8",
+                            }
+                            style = colors.get(status, "background:#F1EFE8;color:#5F5E5A")
+                            return f'<span style="{style};padding:2px 8px;border-radius:20px;font-size:12px;font-weight:500;">{status}</span>'
+
+                        def _load_badge(load):
+                            if load:
+                                return f'<span style="background:#F1EFE8;color:#5F5E5A;padding:2px 8px;border-radius:20px;font-size:12px;font-weight:500;">🚛 {load}</span>'
+                            return f'<span style="background:#FCEBEB;color:#A32D2D;padding:2px 8px;border-radius:20px;font-size:12px;font-weight:500;">No load</span>'
+
+                        st.markdown(f"""
+                        <div style="border:0.5px solid #f0f0f0;border-radius:8px;overflow:hidden;margin-top:8px;">
+                          <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:0.5px solid #f0f0f0;">
+                            <span style="font-size:13px;font-weight:500;min-width:130px;">{op['shipment_1']}</span>
+                            <span style="font-size:12px;color:#64748b;flex:1;">{op['destino_1']} · {op['peso_1']:,} lbs</span>
+                            {_status_badge(op.get('status_1',''))}
+                            {_load_badge(op.get('load_1',''))}
+                          </div>
+                          <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;">
+                            <span style="font-size:13px;font-weight:500;min-width:130px;">{op['shipment_2']}</span>
+                            <span style="font-size:12px;color:#64748b;flex:1;">{op['destino_2']} · {op['peso_2']:,} lbs</span>
+                            {_status_badge(op.get('status_2',''))}
+                            {_load_badge(op.get('load_2',''))}
+                          </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+
                         if tipo == "C":
-                            st.caption("Exact savings vary by broker and route — review pricing before committing.")
+                            st.caption(f"Currently: {op.get('trailer_actual_1','')} + {op.get('trailer_actual_2','')} — Exact savings vary by broker and route.")
                         st.markdown(f"**Suggested:** {op['trailer_sugerido']}")
+
+                        # Warning if any shipment already has a load
+                        if op.get('load_1') or op.get('load_2'):
+                            st.warning("⚠️ One or more shipments already have a load assigned — verify before consolidating.")
+
                     elif tipo == "B":
                         c1, c2 = st.columns(2)
                         c1.metric("Distance", f"{op['distancia_millas']} miles")
                         c2.metric("Available space in load", f"{op['espacio_disponible_en_load']:,} lbs")
-                        st.markdown(f"**Shipment:** {op['shipment_1']} → {op['destino_1']} ({op['peso_1']:,} lbs)")
-                        st.markdown(f"**Existing Load:** {op['load_existente']} → {op.get('load_destino','')}")
+
+                        def _status_badge_b(status):
+                            colors = {
+                                "Ready": "background:#F0FDF4;color:#15803d",
+                                "In Progress": "background:#FFFBEB;color:#b45309",
+                                "Pending Print": "background:#EFF6FF;color:#1d4ed8",
+                            }
+                            style = colors.get(status, "background:#F1EFE8;color:#5F5E5A")
+                            return f'<span style="{style};padding:2px 8px;border-radius:20px;font-size:12px;font-weight:500;">{status}</span>'
+
+                        st.markdown(f"""
+                        <div style="border:0.5px solid #f0f0f0;border-radius:8px;overflow:hidden;margin-top:8px;">
+                          <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:0.5px solid #f0f0f0;">
+                            <span style="font-size:13px;font-weight:500;min-width:130px;">{op['shipment_1']}</span>
+                            <span style="font-size:12px;color:#64748b;flex:1;">{op['destino_1']} · {op['peso_1']:,} lbs</span>
+                            {_status_badge_b(op.get('status_1',''))}
+                          </div>
+                          <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;">
+                            <span style="font-size:13px;font-weight:500;min-width:130px;">{op.get('load_existente','')}</span>
+                            <span style="font-size:12px;color:#64748b;flex:1;">{op.get('load_destino','')} · existing load</span>
+                            <span style="background:#F1EFE8;color:#5F5E5A;padding:2px 8px;border-radius:20px;font-size:12px;font-weight:500;">🚛 Active load</span>
+                          </div>
+                        </div>
+                        """, unsafe_allow_html=True)
                         st.markdown(f"**Suggested:** {op['trailer_sugerido']}")
 
 # ── TRUCK BUILDER ─────────────────────────────────────────────────────────────
