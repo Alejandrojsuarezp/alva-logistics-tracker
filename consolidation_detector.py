@@ -3,6 +3,8 @@
 # ============================================
 
 import smtplib
+import json
+import os
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime
@@ -24,13 +26,52 @@ geolocator = Nominatim(user_agent="alva_logistics")
 TRAILERS_PEQUENOS = ["Hotshot 40'"]
 TRAILERS_GRANDES_SUGERIDOS = ["Flatbed 48'", "Stepdeck 48'"]
 
+# ── PERSISTENT COORDS CACHE ──────────────────────────────────────────────────
+# Stores geocoded coordinates so Nominatim is never called twice for the same city.
+# File lives in the same directory as this script.
+CACHE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "coords_cache.json")
+
+def _load_cache():
+    if os.path.exists(CACHE_FILE):
+        try:
+            with open(CACHE_FILE, "r") as f:
+                return json.load(f)
+        except Exception:
+            return {}
+    return {}
+
+def _save_cache(cache):
+    try:
+        with open(CACHE_FILE, "w") as f:
+            json.dump(cache, f, indent=2)
+    except Exception as e:
+        print(f"Warning: could not save coords cache: {e}")
+
 def get_coordinates(city, state):
+    """Return (lat, lon) for city/state, using persistent cache to avoid repeat API calls."""
+    key = f"{city.strip().lower()},{state.strip().lower()}"
+    cache = _load_cache()
+
+    if key in cache:
+        cached = cache[key]
+        if cached is None:
+            return None
+        return tuple(cached)
+
+    # Not in cache — call Nominatim
     try:
         location = geolocator.geocode(f"{city}, {state}, USA")
         if location:
-            return (location.latitude, location.longitude)
-        return None
-    except Exception:
+            coords = (location.latitude, location.longitude)
+            cache[key] = list(coords)
+            _save_cache(cache)
+            return coords
+        else:
+            cache[key] = None
+            _save_cache(cache)
+            return None
+    except Exception as e:
+        print(f"Geocoding error for {city}, {state}: {e}")
         return None
 
 def calcular_distancia_millas(coords1, coords2):
@@ -177,8 +218,11 @@ def detectar_consolidaciones():
 
     print("Obteniendo coordenadas de shipments...")
     for s in shipments:
+        key = f"{s['city'].strip().lower()},{s['state'].strip().lower()}"
+        cache = _load_cache()
+        if key not in cache:
+            time.sleep(1)  # Only sleep when actually calling Nominatim
         s["coords"] = get_coordinates(s["city"], s["state"])
-        time.sleep(1)
 
     print("Obteniendo coordenadas de loads activos...")
     for l in loads_activos:
@@ -189,10 +233,13 @@ def detectar_consolidaciones():
             partes = str(destinos).split(",")
             ciudad = partes[0].strip()
             estado = partes[1].strip() if len(partes) > 1 else ""
+            key = f"{ciudad.lower()},{estado.lower()}"
+            cache = _load_cache()
+            if key not in cache:
+                time.sleep(1)
             l["coords"] = get_coordinates(ciudad, estado)
         else:
             l["coords"] = None
-        time.sleep(1)
 
     grupos = _agrupar_por_warehouse(shipments)
     resultado = {"Texas": [], "Florida": []}
