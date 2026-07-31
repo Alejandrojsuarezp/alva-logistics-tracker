@@ -7,11 +7,12 @@ import pandas as pd
 import requests
 import time
 import html
+from collections import Counter
 from datetime import datetime, date
 import folium
 from streamlit_folium import st_folium
 from config import AIRTABLE_TOKEN, SHIPMENTS_TABLE, LOADS_TABLE, PRICING_TABLE, UPDATES_LOG_TABLE
-from airtable_connection import get_all_shipments, get_loads, get_pricing, get_updates_log, get_shipment_number_map
+from airtable_connection import get_all_shipments, get_loads, get_pricing, get_updates_log, get_shipment_number_map, get_records
 from consolidation_detector import detectar_consolidaciones, get_coordinates, _load_cache
 
 st.set_page_config(
@@ -591,7 +592,7 @@ elif pagina == "Loads":
 
     col_f, col_btn = st.columns([4, 1])
     with col_f:
-        filtro_ld = st.selectbox("Filter", ["All","Scheduled","In Transit","Shipped"], label_visibility="collapsed")
+        filtro_ld = st.selectbox("Filter", ["All","Ready","Scheduled","In Transit","Shipped"], label_visibility="collapsed")
     with col_btn:
         show_load_form = st.button("＋  New Load", type="primary", use_container_width=True)
 
@@ -631,7 +632,7 @@ elif pagina == "Loads":
             with col_l:
                 load_sel = st.selectbox("Load", [l["load_number"] for l in loads])
             with col_s:
-                nuevo_load_status = st.selectbox("New Status", ["Scheduled","In Transit","Shipped"])
+                nuevo_load_status = st.selectbox("New Status", ["Ready","Scheduled","In Transit","Shipped"])
             if st.button("Update Load Status", type="primary"):
                 obj = next((l for l in loads if l["load_number"] == load_sel), None)
                 if obj:
@@ -655,7 +656,7 @@ elif pagina == "Loads":
         with c1:
             f_load_num = st.text_input("Load Number * (from broker)", placeholder="e.g. LOAD 27617")
         with c2:
-            f_load_status = st.selectbox("Load Status *", ["Scheduled","In Transit","Shipped"])
+            f_load_status = st.selectbox("Load Status *", ["Ready","Scheduled","In Transit","Shipped"])
 
         ship_options = [f"{s['shipment_number']} — {s['customer']} · {s['city']}, {s['state']}"
                         for s in shipments if s["warehouse_status"] != "Shipped" and s.get("pick_up") != "Yes"]
@@ -1070,7 +1071,19 @@ elif pagina == "Live Map":
     }
 
     with st.spinner("Loading loads..."):
-        loads = get_loads()
+        loads = get_loads(debug=True)
+
+    with st.expander("🔧 Debug: raw Load data from Airtable"):
+        status_counts = Counter(l.get("load_status", "") for l in loads)
+        st.write("Load Status counts across all loads:", dict(status_counts))
+        warehouse_counts = Counter(l.get("warehouse", "") for l in loads)
+        st.write("Warehouse value counts across all loads:", dict(warehouse_counts))
+        raw_first = get_records(LOADS_TABLE)
+        if raw_first:
+            st.write("Raw fields for the first Load record returned by Airtable:")
+            st.json(raw_first[0].get("fields", {}))
+        else:
+            st.write("No Load records returned from Airtable.")
 
     ready_loads = [l for l in loads if l.get("load_status") == "Ready"]
 

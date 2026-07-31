@@ -3,6 +3,7 @@
 # ============================================
 
 import requests
+import json
 from config import AIRTABLE_TOKEN, BASE_ID, SHIPMENTS_TABLE, PRICING_TABLE, LOADS_TABLE, UPDATES_LOG_TABLE, BUNDLE_DIMENSIONS_TABLE
 
 def format_date(date_str):
@@ -42,6 +43,17 @@ def _resolve_list_field(raw):
     if isinstance(raw, list):
         return ", ".join([str(x) for x in raw if x])
     return str(raw) if raw else ""
+
+def _resolve_warehouse(fields):
+    """Warehouse comes from a lookup field on Loads, rolled up from linked shipments.
+    Airtable auto-names un-renamed lookup fields (e.g. "Warehouse (from Linked Shipments)"),
+    and the value itself can come back as a list, a scalar, or be missing — handle all three."""
+    for key, raw in fields.items():
+        if key == "Warehouse" or key.startswith("Warehouse ("):
+            if isinstance(raw, list):
+                return str(raw[0]) if raw else ""
+            return str(raw) if raw else ""
+    return ""
 
 def get_active_shipments():
     formula = "OR({Warehouse Status}='Pending Print', {Warehouse Status}='In Progress', {Warehouse Status}='Ready')"
@@ -123,12 +135,16 @@ def get_shipment_number_map():
         for r in shipment_records
     }
 
-def get_loads(id_to_shpt_number=None):
+def get_loads(id_to_shpt_number=None, debug=False):
     records = get_records(LOADS_TABLE)
     # Resolves "Linked Shipments" (multipleRecordLinks, returns record IDs) into readable numbers.
     # Accepts a pre-built map so callers needing several of these functions can fetch Shipments once.
     if id_to_shpt_number is None:
         id_to_shpt_number = get_shipment_number_map()
+
+    if debug and records:
+        print("DEBUG get_loads() — raw fields of first Load record from Airtable:")
+        print(json.dumps(records[0].get("fields", {}), indent=2, default=str))
 
     loads = []
     for record in records:
@@ -138,8 +154,7 @@ def get_loads(id_to_shpt_number=None):
         carrier = _resolve_list_field(fields.get("Carrier", ""))
 
         # Warehouse comes from a lookup field (array), rolled up from linked shipments
-        warehouse_raw = fields.get("Warehouse", "")
-        warehouse = warehouse_raw[0] if isinstance(warehouse_raw, list) and warehouse_raw else (warehouse_raw if not isinstance(warehouse_raw, list) else "")
+        warehouse = _resolve_warehouse(fields)
 
         # Freight cost / Sales value come from lookup fields (arrays)
         freight_raw = fields.get("Freight Cost", 0)
