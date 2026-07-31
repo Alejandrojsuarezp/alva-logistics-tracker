@@ -12,7 +12,7 @@ from datetime import datetime, date
 import folium
 from streamlit_folium import st_folium
 from config import AIRTABLE_TOKEN, SHIPMENTS_TABLE, LOADS_TABLE, PRICING_TABLE, UPDATES_LOG_TABLE
-from airtable_connection import get_all_shipments, get_loads, get_pricing, get_updates_log, get_shipment_number_map, get_records
+from airtable_connection import get_all_shipments, get_loads, get_pricing, get_updates_log, get_shipment_lookup_maps, get_records
 from consolidation_detector import detectar_consolidaciones, get_coordinates, _load_cache
 
 st.set_page_config(
@@ -585,9 +585,9 @@ elif pagina == "Loads":
     st.markdown('<div class="xlt-page-title">Loads</div>', unsafe_allow_html=True)
 
     with st.spinner("Loading..."):
-        shipment_map = get_shipment_number_map()
-        loads     = get_loads(shipment_map)
-        quotes    = get_pricing(shipment_map)
+        shipment_number_map, shipment_state_map = get_shipment_lookup_maps()
+        loads     = get_loads(shipment_number_map, shipment_state_map)
+        quotes    = get_pricing(shipment_number_map)
         shipments = get_all_shipments()
 
     col_f, col_btn = st.columns([4, 1])
@@ -837,10 +837,10 @@ elif pagina == "Updates Log":
     st.markdown('<div class="xlt-page-title">Updates Log</div>', unsafe_allow_html=True)
 
     with st.spinner("Loading..."):
-        shipment_map = get_shipment_number_map()
-        updates   = get_updates_log(shipment_map)
+        shipment_number_map, shipment_state_map = get_shipment_lookup_maps()
+        updates   = get_updates_log(shipment_number_map)
         shipments = get_all_shipments()
-        loads     = get_loads(shipment_map)
+        loads     = get_loads(shipment_number_map, shipment_state_map)
 
     col_f, col_btn = st.columns([4, 1])
     with col_f:
@@ -1092,18 +1092,26 @@ elif pagina == "Live Map":
         destinos = l.get("destinations", "")
         if isinstance(destinos, list):
             destinos = destinos[0] if destinos else ""
-        l["coords"] = None
-        if destinos and "," in str(destinos):
-            partes = str(destinos).split(",")
+        ciudad = str(destinos).strip() if destinos else ""
+        estado = l.get("destination_state", "") or ""
+
+        # Destinations occasionally already comes as "City, ST" — split it and only
+        # fall back to destination_state (from the linked shipment) if it didn't.
+        if "," in ciudad:
+            partes = ciudad.split(",")
             ciudad = partes[0].strip()
-            estado = partes[1].strip() if len(partes) > 1 else ""
+            if not estado and len(partes) > 1:
+                estado = partes[1].strip()
+
+        l["coords"] = None
+        if ciudad and estado:
             key = f"{ciudad.lower()},{estado.lower()}"
             if key not in cache:
                 time.sleep(1)  # Nominatim rate-limit courtesy, only for uncached lookups
             l["coords"] = get_coordinates(ciudad, estado, cache)
             l["_destino_display"] = f"{ciudad}, {estado}"
         else:
-            l["_destino_display"] = str(destinos) if destinos else "—"
+            l["_destino_display"] = ciudad if ciudad else "—"
 
     tx_ready = [l for l in ready_loads if l.get("warehouse") == "Texas"]
     fl_ready = [l for l in ready_loads if l.get("warehouse") == "Florida"]
