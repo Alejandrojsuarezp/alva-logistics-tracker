@@ -311,6 +311,10 @@ WAREHOUSE_COORDS = {
     "Texas":   (32.7767, -97.2894),
     "Florida": (26.7153, -80.0534),
 }
+COLOR_TEXAS = "#185FA5"
+COLOR_FLORIDA = "#FFC107"
+COLOR_CONSOLIDATED = "#FF8C00"
+COLOR_UNKNOWN = "#9CA3AF"
 
 @st.cache_data(ttl=60, show_spinner=False)
 def _get_live_map_data():
@@ -330,14 +334,17 @@ def _get_live_map_data():
         is_consolidated = len(linked_ids) >= 2
         wh = l.get("warehouse")
         if is_consolidated:
-            color = "orange"
+            color = COLOR_CONSOLIDATED
         elif wh == "Texas":
-            color = "blue"
+            color = COLOR_TEXAS
         elif wh == "Florida":
-            color = "green"
+            color = COLOR_FLORIDA
         else:
-            color = "gray"
+            color = COLOR_UNKNOWN
 
+        # Resolve all shipments in this load first, so consolidated loads can list
+        # "also in this load" siblings on every marker's popup.
+        load_shipments = []
         for sid in linked_ids:
             shipment = shipment_by_id.get(sid)
             if not shipment:
@@ -348,14 +355,23 @@ def _get_live_map_data():
             )
             if not coords:
                 continue
-            markers.append({
+            load_shipments.append({
                 "coords": coords,
+                "shipment_number": shipment.get("shipment_number", ""),
+                "destination": f"{shipment.get('city','')}, {shipment.get('state','')}",
+            })
+
+        for i, si in enumerate(load_shipments):
+            others = [o for j, o in enumerate(load_shipments) if j != i]
+            markers.append({
+                "coords": si["coords"],
                 "color": color,
                 "warehouse": wh,
                 "load_number": l.get("load_number", ""),
                 "carrier": l.get("carrier", ""),
-                "shipment_number": shipment.get("shipment_number", ""),
-                "destination": f"{shipment.get('city','')}, {shipment.get('state','')}",
+                "shipment_number": si["shipment_number"],
+                "destination": si["destination"],
+                "others": others,
             })
 
     raw_loads = get_records(LOADS_TABLE)
@@ -1137,49 +1153,65 @@ elif pagina == "Live Map":
         st.write("Raw fields for the first Load record returned by Airtable:")
         st.json(data["raw_first_fields"])
 
+    c1, c2, c3, c4 = st.columns(4)
+    live_map_metrics = [
+        (c1, "🚚", "#EFF6FF", COLOR_TEXAS,       data["tx_loads"],           "Texas Loads"),
+        (c2, "🚚", "#FFFBEB", "#b45309",          data["fl_loads"],           "Florida Loads"),
+        (c3, "🔗", "#FFF7ED", COLOR_CONSOLIDATED, data["consolidated_pairs"], "Consolidated Pairs"),
+        (c4, "📦", "#F8FAFC", "#64748b",          data["total_loads"],        "Total"),
+    ]
+    for col, icon, bg, color, val, lbl in live_map_metrics:
+        with col:
+            st.markdown(f"""
+            <div class="xlt-metric">
+                <div class="xlt-metric-icon" style="background:{bg};color:{color};">{icon}</div>
+                <div class="xlt-metric-val">{val}</div>
+                <div class="xlt-metric-lbl">{lbl}</div>
+            </div>""", unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    def _star_icon(hex_color):
+        return folium.DivIcon(html=f'<div style="font-size:26px;line-height:1;color:{hex_color};text-shadow:0 0 3px rgba(0,0,0,0.35);">★</div>')
+
     m = folium.Map(location=[31.5, -88.0], zoom_start=6, tiles="cartodbpositron")
     folium.Marker(WAREHOUSE_COORDS["Texas"], tooltip="Texas Warehouse",
-                  icon=folium.Icon(color="blue", icon="star")).add_to(m)
+                  icon=_star_icon(COLOR_TEXAS)).add_to(m)
     folium.Marker(WAREHOUSE_COORDS["Florida"], tooltip="Florida Warehouse",
-                  icon=folium.Icon(color="green", icon="star")).add_to(m)
+                  icon=_star_icon(COLOR_FLORIDA)).add_to(m)
 
     for mk in data["markers"]:
         wh_coords = WAREHOUSE_COORDS.get(mk["warehouse"])
-        popup_html = (
-            f"<b>Load:</b> {html.escape(str(mk['load_number']))}<br>"
-            f"<b>Carrier:</b> {html.escape(str(mk['carrier']))}<br>"
-            f"<b>Shipment:</b> {html.escape(str(mk['shipment_number']))}<br>"
-            f"<b>Destination:</b> {html.escape(str(mk['destination']))}"
-        )
+        popup_lines = [
+            f"<b>Load:</b> {html.escape(str(mk['load_number']))}",
+            f"<b>Carrier:</b> {html.escape(str(mk['carrier']))}",
+            f"<b>This shipment:</b> {html.escape(str(mk['shipment_number']))} → {html.escape(str(mk['destination']))}",
+        ]
+        for other in mk.get("others", []):
+            popup_lines.append(
+                f"<b>Also in this load:</b> {html.escape(str(other['shipment_number']))} → {html.escape(str(other['destination']))}"
+            )
+        popup_html = "<br>".join(popup_lines)
+
         folium.CircleMarker(
             location=mk["coords"], radius=7, color=mk["color"], fill=True,
             fill_color=mk["color"], fill_opacity=0.85,
-            popup=folium.Popup(popup_html, max_width=250),
+            popup=folium.Popup(popup_html, max_width=280),
         ).add_to(m)
 
         if wh_coords:
             folium.PolyLine([wh_coords, mk["coords"]], color=mk["color"], weight=1.5, opacity=0.5).add_to(m)
 
     st.markdown(f"""
-    <div style="position:fixed; top:90px; right:40px; z-index:9999; background:#ffffffee;
-                border:1px solid #e2e8f0; border-radius:10px; padding:14px 18px;
-                box-shadow:0 4px 14px rgba(0,0,0,0.08); min-width:160px;">
-      <div style="font-size:12px;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">Live Map Stats</div>
-      <div style="font-size:13px;color:#0f172a;margin-bottom:4px;">Texas loads: <b>{data['tx_loads']}</b></div>
-      <div style="font-size:13px;color:#0f172a;margin-bottom:4px;">Florida loads: <b>{data['fl_loads']}</b></div>
-      <div style="font-size:13px;color:#0f172a;margin-bottom:4px;">Consolidated pairs: <b>{data['consolidated_pairs']}</b></div>
-      <div style="font-size:13px;color:#0f172a;">Total: <b>{data['total_loads']}</b></div>
-    </div>
-
     <div style="position:fixed; bottom:30px; left:40px; z-index:9999; background:#ffffffee;
                 border:1px solid #e2e8f0; border-radius:10px; padding:12px 16px;
                 box-shadow:0 4px 14px rgba(0,0,0,0.08); font-size:12px; color:#0f172a; max-width:220px;">
       <div style="font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;font-size:11px;margin-bottom:8px;">Legend</div>
-      <div style="margin-bottom:5px;"><span style="color:#185FA5;">★</span> Blue star — Texas warehouse</div>
-      <div style="margin-bottom:5px;"><span style="color:#15803d;">★</span> Green star — Florida warehouse</div>
-      <div style="margin-bottom:5px;"><span style="color:#3388ff;">●</span> Blue circle — Texas load</div>
-      <div style="margin-bottom:5px;"><span style="color:#2ca02c;">●</span> Green circle — Florida load</div>
-      <div><span style="color:#ff8c00;">●</span> Orange circle — Consolidated load (2+ shipments)</div>
+      <div style="margin-bottom:5px;"><span style="color:{COLOR_TEXAS};">★</span> Blue star — Texas warehouse</div>
+      <div style="margin-bottom:5px;"><span style="color:{COLOR_FLORIDA};">★</span> Yellow star — Florida warehouse</div>
+      <div style="margin-bottom:5px;"><span style="color:{COLOR_TEXAS};">●</span> Blue circle — Texas load</div>
+      <div style="margin-bottom:5px;"><span style="color:{COLOR_FLORIDA};">●</span> Yellow circle — Florida load</div>
+      <div><span style="color:{COLOR_CONSOLIDATED};">●</span> Orange circle — Consolidated load</div>
     </div>
     """, unsafe_allow_html=True)
 
