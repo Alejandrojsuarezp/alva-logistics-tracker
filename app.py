@@ -7,7 +7,6 @@ import pandas as pd
 import requests
 import time
 import html
-from collections import defaultdict
 from datetime import datetime, date
 import folium
 from streamlit_folium import st_folium
@@ -1063,38 +1062,39 @@ elif pagina == "Consolidations":
 # ── LIVE MAP ──────────────────────────────────────────────────────────────────
 elif pagina == "Live Map":
     st.markdown('<div class="xlt-page-title">Live Map</div>', unsafe_allow_html=True)
-    st.markdown('<div class="xlt-page-sub">Ready shipments with an assigned load, plotted by destination</div>', unsafe_allow_html=True)
+    st.markdown('<div class="xlt-page-sub">Loads ready for pickup, plotted by destination</div>', unsafe_allow_html=True)
 
     WAREHOUSE_COORDS = {
         "Texas":   (32.7767, -97.2894),
         "Florida": (26.7153, -80.0534),
     }
 
-    with st.spinner("Loading shipments..."):
-        shipments = get_all_shipments()
+    with st.spinner("Loading loads..."):
         loads = get_loads()
 
-    load_carrier_map = {l["load_number"]: l["carrier"] for l in loads}
-
-    ready_with_load = [
-        s for s in shipments
-        if s.get("warehouse_status") == "Ready" and s.get("load_assigned")
-    ]
+    ready_loads = [l for l in loads if l.get("load_status") == "Ready"]
 
     cache = _load_cache()
-    for s in ready_with_load:
-        key = f"{s['city'].strip().lower()},{s['state'].strip().lower()}"
-        if key not in cache:
-            time.sleep(1)  # Nominatim rate-limit courtesy, only for uncached lookups
-        s["coords"] = get_coordinates(s["city"], s["state"], cache)
+    for l in ready_loads:
+        destinos = l.get("destinations", "")
+        if isinstance(destinos, list):
+            destinos = destinos[0] if destinos else ""
+        l["coords"] = None
+        if destinos and "," in str(destinos):
+            partes = str(destinos).split(",")
+            ciudad = partes[0].strip()
+            estado = partes[1].strip() if len(partes) > 1 else ""
+            key = f"{ciudad.lower()},{estado.lower()}"
+            if key not in cache:
+                time.sleep(1)  # Nominatim rate-limit courtesy, only for uncached lookups
+            l["coords"] = get_coordinates(ciudad, estado, cache)
+            l["_destino_display"] = f"{ciudad}, {estado}"
+        else:
+            l["_destino_display"] = str(destinos) if destinos else "—"
 
-    by_load = defaultdict(list)
-    for s in ready_with_load:
-        by_load[s["load_assigned"]].append(s)
-
-    tx_loads = {s["load_assigned"] for s in ready_with_load if s.get("warehouse") == "Texas"}
-    fl_loads = {s["load_assigned"] for s in ready_with_load if s.get("warehouse") == "Florida"}
-    consolidated_pairs = sum(1 for grp in by_load.values() if len(grp) >= 2)
+    tx_ready = [l for l in ready_loads if l.get("warehouse") == "Texas"]
+    fl_ready = [l for l in ready_loads if l.get("warehouse") == "Florida"]
+    consolidated_pairs = sum(1 for l in ready_loads if len(l.get("linked_shipment_ids", [])) >= 2)
 
     m = folium.Map(location=[31.5, -88.0], zoom_start=6, tiles="cartodbpositron")
     folium.Marker(WAREHOUSE_COORDS["Texas"], tooltip="Texas Warehouse",
@@ -1102,13 +1102,12 @@ elif pagina == "Live Map":
     folium.Marker(WAREHOUSE_COORDS["Florida"], tooltip="Florida Warehouse",
                   icon=folium.Icon(color="green", icon="star")).add_to(m)
 
-    for s in ready_with_load:
-        if not s.get("coords"):
+    for l in ready_loads:
+        if not l.get("coords"):
             continue
-        wh = s.get("warehouse")
+        wh = l.get("warehouse")
         wh_coords = WAREHOUSE_COORDS.get(wh)
-        group = by_load.get(s["load_assigned"], [])
-        if len(group) >= 2:
+        if len(l.get("linked_shipment_ids", [])) >= 2:
             color = "orange"
         elif wh == "Texas":
             color = "blue"
@@ -1117,31 +1116,30 @@ elif pagina == "Live Map":
         else:
             color = "gray"
 
-        carrier = load_carrier_map.get(s["load_assigned"].split(", ")[0], "—")
         popup_html = (
-            f"<b>Shipment:</b> {html.escape(str(s.get('shipment_number','—')))}<br>"
-            f"<b>Load:</b> {html.escape(str(s.get('load_assigned','—')))}<br>"
-            f"<b>Carrier:</b> {html.escape(str(carrier))}<br>"
-            f"<b>Destination:</b> {html.escape(str(s.get('city','')))}, {html.escape(str(s.get('state','')))}"
+            f"<b>Load:</b> {html.escape(str(l.get('load_number','—')))}<br>"
+            f"<b>Carrier:</b> {html.escape(str(l.get('carrier','—')))}<br>"
+            f"<b>Shipments:</b> {html.escape(str(l.get('linked_shipments','—')))}<br>"
+            f"<b>Destination:</b> {html.escape(str(l.get('_destino_display','—')))}"
         )
         folium.CircleMarker(
-            location=s["coords"], radius=7, color=color, fill=True,
+            location=l["coords"], radius=7, color=color, fill=True,
             fill_color=color, fill_opacity=0.85,
             popup=folium.Popup(popup_html, max_width=250),
         ).add_to(m)
 
         if wh_coords:
-            folium.PolyLine([wh_coords, s["coords"]], color=color, weight=1.5, opacity=0.5).add_to(m)
+            folium.PolyLine([wh_coords, l["coords"]], color=color, weight=1.5, opacity=0.5).add_to(m)
 
     st.markdown(f"""
     <div style="position:fixed; top:90px; right:40px; z-index:9999; background:#ffffffee;
                 border:1px solid #e2e8f0; border-radius:10px; padding:14px 18px;
                 box-shadow:0 4px 14px rgba(0,0,0,0.08); min-width:160px;">
       <div style="font-size:12px;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">Live Map Stats</div>
-      <div style="font-size:13px;color:#0f172a;margin-bottom:4px;">Texas loads: <b>{len(tx_loads)}</b></div>
-      <div style="font-size:13px;color:#0f172a;margin-bottom:4px;">Florida loads: <b>{len(fl_loads)}</b></div>
+      <div style="font-size:13px;color:#0f172a;margin-bottom:4px;">Texas loads: <b>{len(tx_ready)}</b></div>
+      <div style="font-size:13px;color:#0f172a;margin-bottom:4px;">Florida loads: <b>{len(fl_ready)}</b></div>
       <div style="font-size:13px;color:#0f172a;margin-bottom:4px;">Consolidated pairs: <b>{consolidated_pairs}</b></div>
-      <div style="font-size:13px;color:#0f172a;">Total shipments: <b>{len(ready_with_load)}</b></div>
+      <div style="font-size:13px;color:#0f172a;">Total: <b>{len(ready_loads)}</b></div>
     </div>
     """, unsafe_allow_html=True)
 

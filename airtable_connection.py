@@ -137,6 +137,10 @@ def get_loads(id_to_shpt_number=None):
         # Carrier comes from a lookup field (array)
         carrier = _resolve_list_field(fields.get("Carrier", ""))
 
+        # Warehouse comes from a lookup field (array), rolled up from linked shipments
+        warehouse_raw = fields.get("Warehouse", "")
+        warehouse = warehouse_raw[0] if isinstance(warehouse_raw, list) and warehouse_raw else (warehouse_raw if not isinstance(warehouse_raw, list) else "")
+
         # Freight cost / Sales value come from lookup fields (arrays)
         freight_raw = fields.get("Freight Cost", 0)
         freight = freight_raw[0] if isinstance(freight_raw, list) and freight_raw else (freight_raw if not isinstance(freight_raw, list) else 0)
@@ -155,6 +159,7 @@ def get_loads(id_to_shpt_number=None):
             "id": record["id"],
             "load_number": fields.get("Load Number", ""),
             "carrier": carrier,
+            "warehouse": warehouse,
             "trailer_type": fields.get("Trailer Type", ""),
             "total_weight": f"{int(fields.get('Total Weight', 0) or 0):,}",
             "total_bundles": fields.get("Total Bundles", 0),
