@@ -24,14 +24,15 @@ st.set_page_config(
 # ── GLOBAL CSS ─────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
 
 html, body, [class*="css"] {
     font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
 }
 
 #MainMenu, footer, header { visibility: hidden; }
-.block-container { padding: 1.5rem 2rem 2rem 2rem !important; }
+.block-container { padding: 2rem 2.5rem 2.5rem 2.5rem !important; }
 
 section[data-testid="stSidebar"] {
     background: #ffffff;
@@ -81,20 +82,63 @@ section[data-testid="stSidebar"] > div {
 }
 
 div[data-testid="stSidebarNav"] { display: none; }
-div[data-testid="stSidebar"] div[role="radiogroup"] label {
-    font-size: 14px !important;
-    padding: 6px 8px !important;
+
+/* Custom sidebar nav — one st.button per item, styled to look like nav rows.
+   Active item uses Streamlit's native type="primary"; the rest use "secondary". */
+section[data-testid="stSidebar"] div[data-testid="stButton"] { margin: 2px 10px; }
+section[data-testid="stSidebar"] div[data-testid="stButton"] button {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    border: none;
+    border-radius: 8px;
+    padding: 9px 12px;
+    font-size: 14px;
+    font-weight: 500;
+    background: transparent;
+    color: #475569;
+    box-shadow: none;
+    transition: background .15s, color .15s;
 }
-div[data-testid="stSidebar"] div[role="radiogroup"] label p {
+section[data-testid="stSidebar"] div[data-testid="stButton"] button p {
     font-size: 14px !important;
+    margin: 0;
+}
+section[data-testid="stSidebar"] div[data-testid="stButton"] button:hover {
+    background: #f0f6ff;
+    color: #185FA5;
+}
+section[data-testid="stSidebar"] div[data-testid="stButton"] button[kind="primary"] {
+    background: #EFF6FF;
+    color: #185FA5;
+    font-weight: 600;
+    border-left: 3px solid #185FA5;
+    padding-left: 9px;
+    box-shadow: none;
+}
+section[data-testid="stSidebar"] div[data-testid="stButton"] button[kind="primary"]:hover {
+    background: #e6f1fb;
 }
 
 .badge {
-    display: inline-block;
-    padding: 3px 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 12px;
     border-radius: 20px;
-    font-size: 13px;
-    font-weight: 500;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: .01em;
+}
+.badge::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: .8;
 }
 .badge-pending  { background: #EFF6FF; color: #1d4ed8; }
 .badge-progress { background: #FFFBEB; color: #b45309; }
@@ -103,51 +147,59 @@ div[data-testid="stSidebar"] div[role="radiogroup"] label p {
 .badge-pickup   { background: #F5F3FF; color: #6d28d9; }
 
 .xlt-page-title {
-    font-size: 24px;
-    font-weight: 600;
+    font-size: 30px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
     color: #0f172a;
-    margin-bottom: 2px;
+    margin-bottom: 4px;
 }
 .xlt-page-sub {
     font-size: 14px;
     color: #94a3b8;
-    margin-bottom: 1.25rem;
+    margin-bottom: 1.75rem;
 }
 
 .xlt-metric {
     background: #ffffff;
     border: 1px solid #f0f0f0;
-    border-radius: 10px;
-    padding: 16px;
+    border-radius: 14px;
+    padding: 22px 20px;
+    transition: transform .15s, box-shadow .15s;
+}
+.xlt-metric:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(15,23,42,0.06);
 }
 .xlt-metric-icon {
-    width: 32px;
-    height: 32px;
-    border-radius: 8px;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-bottom: 10px;
-    font-size: 16px;
+    margin-bottom: 14px;
+    font-size: 19px;
 }
 .xlt-metric-val {
-    font-size: 28px;
-    font-weight: 600;
+    font-size: 32px;
+    font-weight: 700;
     color: #0f172a;
     line-height: 1;
 }
 .xlt-metric-lbl {
     font-size: 13px;
+    font-weight: 500;
     color: #94a3b8;
-    margin-top: 4px;
+    margin-top: 6px;
 }
 
 .xlt-table-wrap {
     background: #ffffff;
     border: 1px solid #f0f0f0;
-    border-radius: 10px;
+    border-radius: 12px;
     overflow: hidden;
     overflow-x: auto;
+    box-shadow: 0 1px 2px rgba(15,23,42,0.03);
 }
 .xlt-table {
     width: 100%;
@@ -156,58 +208,70 @@ div[data-testid="stSidebar"] div[role="radiogroup"] label p {
 }
 .xlt-table th {
     background: #fafafa;
-    padding: 10px 16px;
+    padding: 12px 16px;
     text-align: left;
-    font-size: 13px;
-    font-weight: 500;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .04em;
     color: #94a3b8;
     border-bottom: 1px solid #f0f0f0;
     white-space: nowrap;
 }
 .xlt-table td {
-    padding: 10px 16px;
+    padding: 13px 16px;
     border-bottom: 1px solid #f8f8f8;
-    color: #0f172a;
+    color: #1e293b;
     font-size: 14px;
     white-space: nowrap;
 }
+.xlt-table tr:nth-child(even) td { background: #fafbfc; }
 .xlt-table tr:last-child td { border-bottom: none; }
 .xlt-table tr:hover td { background: #fafbff; }
 
 .xlt-section-card {
     background: #ffffff;
     border: 1px solid #f0f0f0;
-    border-radius: 10px;
-    padding: 16px;
-    margin-bottom: 1rem;
+    border-radius: 12px;
+    padding: 18px 20px;
+    margin-bottom: 1.25rem;
 }
 .xlt-section-title {
-    font-size: 15px;
-    font-weight: 600;
+    font-size: 16px;
+    font-weight: 700;
     color: #0f172a;
-    margin-bottom: 12px;
+    margin-bottom: 14px;
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 7px;
 }
 
 .xlt-form-card {
     background: #ffffff;
     border: 1px solid #e2e8f0;
-    border-radius: 12px;
-    padding: 20px;
-    margin-top: 1rem;
+    border-radius: 14px;
+    padding: 26px 28px;
+    margin-top: 1.25rem;
+    box-shadow: 0 2px 8px rgba(15,23,42,0.04);
 }
 .xlt-form-title {
-    font-size: 15px;
-    font-weight: 600;
+    font-size: 18px;
+    font-weight: 700;
     color: #0f172a;
-    margin-bottom: 16px;
-    padding-bottom: 12px;
-    border-bottom: 1px solid #f0f0f0;
+    margin-bottom: 20px;
+    padding-bottom: 14px;
+    border-bottom: 2px solid #EFF6FF;
     display: flex;
     align-items: center;
-    gap: 7px;
+    gap: 8px;
+}
+.xlt-form-group-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    margin: 18px 0 6px 0;
 }
 .auto-badge {
     font-size: 11px;
@@ -233,14 +297,19 @@ div[data-testid="stNumberInput"] label,
 div[data-testid="stTextArea"] label,
 div[data-testid="stDateInput"] label,
 div[data-testid="stMultiSelect"] label {
-    font-size: 14px !important;
-    font-weight: 500 !important;
-    color: #64748b !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    color: #475569 !important;
 }
 div[data-testid="stButton"] button {
     font-family: 'DM Sans', sans-serif;
-    font-weight: 500;
+    font-weight: 600;
     font-size: 14px !important;
+    border-radius: 8px;
+    padding: 10px 16px;
+}
+div[data-testid="stButton"] button[kind="primary"] {
+    box-shadow: 0 2px 6px rgba(24,95,165,0.25);
 }
 </style>
 """, unsafe_allow_html=True)
@@ -388,6 +457,19 @@ def _get_live_map_data():
     }
 
 # ── SIDEBAR ─────────────────────────────────────────────────────────────────
+NAV_ITEMS = [
+    ("Dashboard", "📊"),
+    ("Shipments", "📦"),
+    ("Loads", "🚛"),
+    ("Pricing", "💰"),
+    ("Updates Log", "📝"),
+    ("Consolidations", "🔗"),
+    ("Live Map", "🗺️"),
+    ("Truck Builder", "🧱"),
+]
+if "pagina" not in st.session_state:
+    st.session_state["pagina"] = "Dashboard"
+
 with st.sidebar:
     st.markdown("""
     <div class="xlt-brand">
@@ -397,16 +479,12 @@ with st.sidebar:
     <div class="xlt-nav-section">Main</div>
     """, unsafe_allow_html=True)
 
-    pagina = st.radio("nav", [
-        "Dashboard",
-        "Shipments",
-        "Loads",
-        "Pricing",
-        "Updates Log",
-        "Consolidations",
-        "Live Map",
-        "Truck Builder",
-    ], label_visibility="collapsed")
+    for label, icon in NAV_ITEMS:
+        is_active = st.session_state["pagina"] == label
+        if st.button(f"{icon}  {label}", key=f"nav_{label}", use_container_width=True,
+                     type="primary" if is_active else "secondary"):
+            st.session_state["pagina"] = label
+            st.rerun()
 
     st.markdown(f"""
     <div class="xlt-nav-div"></div>
@@ -414,6 +492,8 @@ with st.sidebar:
         Texas · {datetime.now().strftime('%b %d, %Y')}
     </div>
     """, unsafe_allow_html=True)
+
+pagina = st.session_state["pagina"]
 
 # ── DASHBOARD ───────────────────────────────────────────────────────────────
 if pagina == "Dashboard":
@@ -441,7 +521,7 @@ if pagina == "Dashboard":
     for col, icon, bg, color, val, lbl in metrics:
         with col:
             st.markdown(f"""
-            <div class="xlt-metric">
+            <div class="xlt-metric" style="border-left:3px solid {color};">
                 <div class="xlt-metric-icon" style="background:{bg};color:{color};">{icon}</div>
                 <div class="xlt-metric-val">{val}</div>
                 <div class="xlt-metric-lbl">{lbl}</div>
@@ -571,6 +651,7 @@ elif pagina == "Shipments":
         st.markdown('<div class="xlt-form-card">', unsafe_allow_html=True)
         st.markdown('<div class="xlt-form-title">➕ New Shipment <span class="auto-badge">Order Date auto-generated · Status starts as Pending Print</span></div>', unsafe_allow_html=True)
 
+        st.markdown('<div class="xlt-form-group-label">Basic Info</div>', unsafe_allow_html=True)
         c1, c2 = st.columns(2)
         with c1:
             f_shipment_num = st.text_input("Shipment Number *", placeholder="e.g. SHPT-0012345")
@@ -583,6 +664,7 @@ elif pagina == "Shipments":
         with c2:
             f_delivery = st.date_input("Requested Delivery Date *", min_value=date.today())
 
+        st.markdown('<div class="xlt-form-group-label">Destination</div>', unsafe_allow_html=True)
         c1, c2 = st.columns(2)
         with c1:
             f_warehouse = st.selectbox("Warehouse *", WAREHOUSE_OPTIONS)
@@ -597,6 +679,7 @@ elif pagina == "Shipments":
         with c3:
             f_zip = st.text_input("ZIP Code", placeholder="77001")
 
+        st.markdown('<div class="xlt-form-group-label">Cargo & Trailer</div>', unsafe_allow_html=True)
         c1, c2 = st.columns(2)
         with c1:
             f_trailer = st.selectbox("Trailer Type Needed *", TRAILER_TYPES)
@@ -731,12 +814,14 @@ elif pagina == "Loads":
         st.markdown('<div class="xlt-form-card">', unsafe_allow_html=True)
         st.markdown('<div class="xlt-form-title">➕ New Load</div>', unsafe_allow_html=True)
 
+        st.markdown('<div class="xlt-form-group-label">Load Info</div>', unsafe_allow_html=True)
         c1, c2 = st.columns(2)
         with c1:
             f_load_num = st.text_input("Load Number * (from broker)", placeholder="e.g. LOAD 27617")
         with c2:
             f_load_status = st.selectbox("Load Status *", ["Ready","Scheduled","In Transit","Shipped"])
 
+        st.markdown('<div class="xlt-form-group-label">Shipments & Quote</div>', unsafe_allow_html=True)
         ship_options = [f"{s['shipment_number']} — {s['customer']} · {s['city']}, {s['state']}"
                         for s in shipments if s["warehouse_status"] != "Shipped" and s.get("pick_up") != "Yes"]
         f_shipments = st.multiselect("Linked Shipments *", ship_options)
@@ -746,6 +831,7 @@ elif pagina == "Loads":
                           for q in pending_quotes]
         f_quote = st.selectbox("Selected Quote from Pricing *", ["— Select —"] + quote_options)
 
+        st.markdown('<div class="xlt-form-group-label">Trailer & Schedule</div>', unsafe_allow_html=True)
         c1, c2 = st.columns(2)
         with c1:
             f_trailer_ld = st.selectbox("Trailer Type *", TRAILER_TYPES)
@@ -859,10 +945,12 @@ elif pagina == "Pricing":
         st.markdown('<div class="xlt-form-card">', unsafe_allow_html=True)
         st.markdown('<div class="xlt-form-title">➕ New Quote <span class="auto-badge">Q- # auto-generated · Freight % and Profit auto-calculated by Airtable</span></div>', unsafe_allow_html=True)
 
+        st.markdown('<div class="xlt-form-group-label">Shipments</div>', unsafe_allow_html=True)
         ship_options_pr = [f"{s['shipment_number']} — {s['customer']} · {s['city']}, {s['state']}"
                            for s in shipments if s["warehouse_status"] != "Shipped" and s.get("pick_up") != "Yes"]
         f_ship_pr = st.multiselect("Linked Shipments *", ship_options_pr)
 
+        st.markdown('<div class="xlt-form-group-label">Carrier & Pricing</div>', unsafe_allow_html=True)
         c1, c2 = st.columns(2)
         with c1:
             f_carrier = st.selectbox("Carrier *", CARRIERS)
@@ -971,6 +1059,7 @@ elif pagina == "Updates Log":
         st.markdown('<div class="xlt-form-card">', unsafe_allow_html=True)
         st.markdown('<div class="xlt-form-title">➕ New Entry <span class="auto-badge">Date/Time auto-generated</span></div>', unsafe_allow_html=True)
 
+        st.markdown('<div class="xlt-form-group-label">Linked Records</div>', unsafe_allow_html=True)
         c1, c2 = st.columns(2)
         with c1:
             ship_opts_ul = [s["shipment_number"] for s in shipments]
@@ -979,6 +1068,7 @@ elif pagina == "Updates Log":
             load_opts_ul = ["— None —"] + [l["load_number"] for l in loads]
             f_load_ul = st.selectbox("Linked Load (optional)", load_opts_ul)
 
+        st.markdown('<div class="xlt-form-group-label">Details</div>', unsafe_allow_html=True)
         c1, c2 = st.columns(2)
         with c1:
             f_type_ul = st.selectbox("Type *", UPDATE_TYPES)
@@ -1163,7 +1253,7 @@ elif pagina == "Live Map":
     for col, icon, bg, color, val, lbl in live_map_metrics:
         with col:
             st.markdown(f"""
-            <div class="xlt-metric">
+            <div class="xlt-metric" style="border-left:3px solid {color};">
                 <div class="xlt-metric-icon" style="background:{bg};color:{color};">{icon}</div>
                 <div class="xlt-metric-val">{val}</div>
                 <div class="xlt-metric-lbl">{lbl}</div>
