@@ -5,15 +5,14 @@
 import streamlit as st
 import pandas as pd
 import requests
-import time
 import html
 from collections import Counter
 from datetime import datetime, date
 import folium
 from streamlit_folium import st_folium
 from config import AIRTABLE_TOKEN, SHIPMENTS_TABLE, LOADS_TABLE, PRICING_TABLE, UPDATES_LOG_TABLE
-from airtable_connection import get_all_shipments, get_loads, get_pricing, get_updates_log, get_shipment_lookup_maps, get_records
-from consolidation_detector import detectar_consolidaciones, get_coordinates, _load_cache
+from airtable_connection import get_all_shipments, get_loads, get_pricing, get_updates_log, get_shipment_number_map, get_records
+from consolidation_detector import detectar_consolidaciones, get_coordinates_address, _load_cache
 
 st.set_page_config(
     page_title="X Logistics Tracker",
@@ -308,6 +307,70 @@ def update_record_api(table_id, record_id, fields):
     response = requests.patch(url, headers=HEADERS, json={"fields": fields}, timeout=10)
     return response
 
+WAREHOUSE_COORDS = {
+    "Texas":   (32.7767, -97.2894),
+    "Florida": (26.7153, -80.0534),
+}
+
+@st.cache_data(ttl=60, show_spinner=False)
+def _get_live_map_data():
+    """Fetches Loads + Shipments and geocodes each Ready load's shipment destinations.
+    Cached for 60s so panning/zooming the map (a Streamlit rerun) doesn't re-hit Airtable
+    or Nominatim on every interaction."""
+    loads = get_loads(debug=True)
+    shipments = get_all_shipments()
+    shipment_by_id = {s["id"]: s for s in shipments}
+
+    ready_loads = [l for l in loads if l.get("load_status") == "Ready"]
+    cache = _load_cache()
+
+    markers = []
+    for l in ready_loads:
+        linked_ids = l.get("linked_shipment_ids", [])
+        is_consolidated = len(linked_ids) >= 2
+        wh = l.get("warehouse")
+        if is_consolidated:
+            color = "orange"
+        elif wh == "Texas":
+            color = "blue"
+        elif wh == "Florida":
+            color = "green"
+        else:
+            color = "gray"
+
+        for sid in linked_ids:
+            shipment = shipment_by_id.get(sid)
+            if not shipment:
+                continue
+            coords = get_coordinates_address(
+                shipment.get("address", ""), shipment.get("city", ""),
+                shipment.get("state", ""), shipment.get("zip_code", ""), cache,
+            )
+            if not coords:
+                continue
+            markers.append({
+                "coords": coords,
+                "color": color,
+                "warehouse": wh,
+                "load_number": l.get("load_number", ""),
+                "carrier": l.get("carrier", ""),
+                "shipment_number": shipment.get("shipment_number", ""),
+                "destination": f"{shipment.get('city','')}, {shipment.get('state','')}",
+            })
+
+    raw_loads = get_records(LOADS_TABLE)
+
+    return {
+        "markers": markers,
+        "tx_loads": sum(1 for l in ready_loads if l.get("warehouse") == "Texas"),
+        "fl_loads": sum(1 for l in ready_loads if l.get("warehouse") == "Florida"),
+        "consolidated_pairs": sum(1 for l in ready_loads if len(l.get("linked_shipment_ids", [])) >= 2),
+        "total_loads": len(ready_loads),
+        "status_counts": dict(Counter(l.get("load_status", "") for l in loads)),
+        "warehouse_counts": dict(Counter(l.get("warehouse", "") for l in loads)),
+        "raw_first_fields": raw_loads[0].get("fields", {}) if raw_loads else {},
+    }
+
 # ── SIDEBAR ─────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown("""
@@ -585,9 +648,9 @@ elif pagina == "Loads":
     st.markdown('<div class="xlt-page-title">Loads</div>', unsafe_allow_html=True)
 
     with st.spinner("Loading..."):
-        shipment_number_map, shipment_state_map = get_shipment_lookup_maps()
-        loads     = get_loads(shipment_number_map, shipment_state_map)
-        quotes    = get_pricing(shipment_number_map)
+        shipment_map = get_shipment_number_map()
+        loads     = get_loads(shipment_map)
+        quotes    = get_pricing(shipment_map)
         shipments = get_all_shipments()
 
     col_f, col_btn = st.columns([4, 1])
@@ -837,10 +900,10 @@ elif pagina == "Updates Log":
     st.markdown('<div class="xlt-page-title">Updates Log</div>', unsafe_allow_html=True)
 
     with st.spinner("Loading..."):
-        shipment_number_map, shipment_state_map = get_shipment_lookup_maps()
-        updates   = get_updates_log(shipment_number_map)
+        shipment_map = get_shipment_number_map()
+        updates   = get_updates_log(shipment_map)
         shipments = get_all_shipments()
-        loads     = get_loads(shipment_number_map, shipment_state_map)
+        loads     = get_loads(shipment_map)
 
     col_f, col_btn = st.columns([4, 1])
     with col_f:
@@ -1063,59 +1126,16 @@ elif pagina == "Consolidations":
 # ── LIVE MAP ──────────────────────────────────────────────────────────────────
 elif pagina == "Live Map":
     st.markdown('<div class="xlt-page-title">Live Map</div>', unsafe_allow_html=True)
-    st.markdown('<div class="xlt-page-sub">Loads ready for pickup, plotted by destination</div>', unsafe_allow_html=True)
-
-    WAREHOUSE_COORDS = {
-        "Texas":   (32.7767, -97.2894),
-        "Florida": (26.7153, -80.0534),
-    }
+    st.markdown('<div class="xlt-page-sub">Loads ready for pickup, plotted by destination (data refreshes every 60s)</div>', unsafe_allow_html=True)
 
     with st.spinner("Loading loads..."):
-        loads = get_loads(debug=True)
+        data = _get_live_map_data()
 
     with st.expander("🔧 Debug: raw Load data from Airtable"):
-        status_counts = Counter(l.get("load_status", "") for l in loads)
-        st.write("Load Status counts across all loads:", dict(status_counts))
-        warehouse_counts = Counter(l.get("warehouse", "") for l in loads)
-        st.write("Warehouse value counts across all loads:", dict(warehouse_counts))
-        raw_first = get_records(LOADS_TABLE)
-        if raw_first:
-            st.write("Raw fields for the first Load record returned by Airtable:")
-            st.json(raw_first[0].get("fields", {}))
-        else:
-            st.write("No Load records returned from Airtable.")
-
-    ready_loads = [l for l in loads if l.get("load_status") == "Ready"]
-
-    cache = _load_cache()
-    for l in ready_loads:
-        destinos = l.get("destinations", "")
-        if isinstance(destinos, list):
-            destinos = destinos[0] if destinos else ""
-        ciudad = str(destinos).strip() if destinos else ""
-        estado = l.get("destination_state", "") or ""
-
-        # Destinations occasionally already comes as "City, ST" — split it and only
-        # fall back to destination_state (from the linked shipment) if it didn't.
-        if "," in ciudad:
-            partes = ciudad.split(",")
-            ciudad = partes[0].strip()
-            if not estado and len(partes) > 1:
-                estado = partes[1].strip()
-
-        l["coords"] = None
-        if ciudad and estado:
-            key = f"{ciudad.lower()},{estado.lower()}"
-            if key not in cache:
-                time.sleep(1)  # Nominatim rate-limit courtesy, only for uncached lookups
-            l["coords"] = get_coordinates(ciudad, estado, cache)
-            l["_destino_display"] = f"{ciudad}, {estado}"
-        else:
-            l["_destino_display"] = ciudad if ciudad else "—"
-
-    tx_ready = [l for l in ready_loads if l.get("warehouse") == "Texas"]
-    fl_ready = [l for l in ready_loads if l.get("warehouse") == "Florida"]
-    consolidated_pairs = sum(1 for l in ready_loads if len(l.get("linked_shipment_ids", [])) >= 2)
+        st.write("Load Status counts across all loads:", data["status_counts"])
+        st.write("Warehouse value counts across all loads:", data["warehouse_counts"])
+        st.write("Raw fields for the first Load record returned by Airtable:")
+        st.json(data["raw_first_fields"])
 
     m = folium.Map(location=[31.5, -88.0], zoom_start=6, tiles="cartodbpositron")
     folium.Marker(WAREHOUSE_COORDS["Texas"], tooltip="Texas Warehouse",
@@ -1123,44 +1143,43 @@ elif pagina == "Live Map":
     folium.Marker(WAREHOUSE_COORDS["Florida"], tooltip="Florida Warehouse",
                   icon=folium.Icon(color="green", icon="star")).add_to(m)
 
-    for l in ready_loads:
-        if not l.get("coords"):
-            continue
-        wh = l.get("warehouse")
-        wh_coords = WAREHOUSE_COORDS.get(wh)
-        if len(l.get("linked_shipment_ids", [])) >= 2:
-            color = "orange"
-        elif wh == "Texas":
-            color = "blue"
-        elif wh == "Florida":
-            color = "green"
-        else:
-            color = "gray"
-
+    for mk in data["markers"]:
+        wh_coords = WAREHOUSE_COORDS.get(mk["warehouse"])
         popup_html = (
-            f"<b>Load:</b> {html.escape(str(l.get('load_number','—')))}<br>"
-            f"<b>Carrier:</b> {html.escape(str(l.get('carrier','—')))}<br>"
-            f"<b>Shipments:</b> {html.escape(str(l.get('linked_shipments','—')))}<br>"
-            f"<b>Destination:</b> {html.escape(str(l.get('_destino_display','—')))}"
+            f"<b>Load:</b> {html.escape(str(mk['load_number']))}<br>"
+            f"<b>Carrier:</b> {html.escape(str(mk['carrier']))}<br>"
+            f"<b>Shipment:</b> {html.escape(str(mk['shipment_number']))}<br>"
+            f"<b>Destination:</b> {html.escape(str(mk['destination']))}"
         )
         folium.CircleMarker(
-            location=l["coords"], radius=7, color=color, fill=True,
-            fill_color=color, fill_opacity=0.85,
+            location=mk["coords"], radius=7, color=mk["color"], fill=True,
+            fill_color=mk["color"], fill_opacity=0.85,
             popup=folium.Popup(popup_html, max_width=250),
         ).add_to(m)
 
         if wh_coords:
-            folium.PolyLine([wh_coords, l["coords"]], color=color, weight=1.5, opacity=0.5).add_to(m)
+            folium.PolyLine([wh_coords, mk["coords"]], color=mk["color"], weight=1.5, opacity=0.5).add_to(m)
 
     st.markdown(f"""
     <div style="position:fixed; top:90px; right:40px; z-index:9999; background:#ffffffee;
                 border:1px solid #e2e8f0; border-radius:10px; padding:14px 18px;
                 box-shadow:0 4px 14px rgba(0,0,0,0.08); min-width:160px;">
       <div style="font-size:12px;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">Live Map Stats</div>
-      <div style="font-size:13px;color:#0f172a;margin-bottom:4px;">Texas loads: <b>{len(tx_ready)}</b></div>
-      <div style="font-size:13px;color:#0f172a;margin-bottom:4px;">Florida loads: <b>{len(fl_ready)}</b></div>
-      <div style="font-size:13px;color:#0f172a;margin-bottom:4px;">Consolidated pairs: <b>{consolidated_pairs}</b></div>
-      <div style="font-size:13px;color:#0f172a;">Total: <b>{len(ready_loads)}</b></div>
+      <div style="font-size:13px;color:#0f172a;margin-bottom:4px;">Texas loads: <b>{data['tx_loads']}</b></div>
+      <div style="font-size:13px;color:#0f172a;margin-bottom:4px;">Florida loads: <b>{data['fl_loads']}</b></div>
+      <div style="font-size:13px;color:#0f172a;margin-bottom:4px;">Consolidated pairs: <b>{data['consolidated_pairs']}</b></div>
+      <div style="font-size:13px;color:#0f172a;">Total: <b>{data['total_loads']}</b></div>
+    </div>
+
+    <div style="position:fixed; bottom:30px; left:40px; z-index:9999; background:#ffffffee;
+                border:1px solid #e2e8f0; border-radius:10px; padding:12px 16px;
+                box-shadow:0 4px 14px rgba(0,0,0,0.08); font-size:12px; color:#0f172a; max-width:220px;">
+      <div style="font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;font-size:11px;margin-bottom:8px;">Legend</div>
+      <div style="margin-bottom:5px;"><span style="color:#185FA5;">★</span> Blue star — Texas warehouse</div>
+      <div style="margin-bottom:5px;"><span style="color:#15803d;">★</span> Green star — Florida warehouse</div>
+      <div style="margin-bottom:5px;"><span style="color:#3388ff;">●</span> Blue circle — Texas load</div>
+      <div style="margin-bottom:5px;"><span style="color:#2ca02c;">●</span> Green circle — Florida load</div>
+      <div><span style="color:#ff8c00;">●</span> Orange circle — Consolidated load (2+ shipments)</div>
     </div>
     """, unsafe_allow_html=True)
 

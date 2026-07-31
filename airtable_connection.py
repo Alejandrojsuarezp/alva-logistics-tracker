@@ -142,28 +142,12 @@ def get_shipment_number_map():
         for r in shipment_records
     }
 
-def get_shipment_lookup_maps():
-    """Fetch Shipments once and build id -> Shipment Number and id -> State in a single pass,
-    for callers (like get_loads) that need both without fetching Shipments twice."""
-    shipment_records = get_records(SHIPMENTS_TABLE)
-    id_to_number = {}
-    id_to_state = {}
-    for r in shipment_records:
-        f = r.get("fields", {})
-        id_to_number[r["id"]] = f.get("Shipment Number", "")
-        id_to_state[r["id"]] = f.get("State", "")
-    return id_to_number, id_to_state
-
-def get_loads(id_to_shpt_number=None, id_to_shpt_state=None, debug=False):
+def get_loads(id_to_shpt_number=None, debug=False):
     records = get_records(LOADS_TABLE)
     # Resolves "Linked Shipments" (multipleRecordLinks, returns record IDs) into readable numbers.
-    # Accepts pre-built maps so callers needing several of these functions can fetch Shipments once.
-    if id_to_shpt_number is None or id_to_shpt_state is None:
-        number_map, state_map = get_shipment_lookup_maps()
-        if id_to_shpt_number is None:
-            id_to_shpt_number = number_map
-        if id_to_shpt_state is None:
-            id_to_shpt_state = state_map
+    # Accepts a pre-built map so callers needing several of these functions can fetch Shipments once.
+    if id_to_shpt_number is None:
+        id_to_shpt_number = get_shipment_number_map()
 
     if debug and records:
         print("DEBUG get_loads() — raw fields of first Load record from Airtable:")
@@ -193,15 +177,6 @@ def get_loads(id_to_shpt_number=None, id_to_shpt_state=None, debug=False):
         linked_numbers = [id_to_shpt_number.get(rid, rid) for rid in linked_ids]
         linked_shipments = ", ".join([str(n) for n in linked_numbers if n]) or "—"
 
-        # The "Destinations" lookup on Loads often only contains the city (e.g. "STERLING HEIGHTS"),
-        # with no state. Fall back to the state of the first linked shipment that has one.
-        destination_state = ""
-        for rid in linked_ids:
-            st_val = id_to_shpt_state.get(rid, "")
-            if st_val:
-                destination_state = st_val
-                break
-
         loads.append({
             "id": record["id"],
             "load_number": fields.get("Load Number", ""),
@@ -211,7 +186,6 @@ def get_loads(id_to_shpt_number=None, id_to_shpt_state=None, debug=False):
             "total_weight": f"{int(fields.get('Total Weight', 0) or 0):,}",
             "total_bundles": fields.get("Total Bundles", 0),
             "destinations": fields.get("Destinations", []),
-            "destination_state": destination_state,
             "load_status": _resolve_scalar(fields.get("Load Status", "")),
             "eta_pickup": format_date(fields.get("ETA Pickup", "")),
             "freight_cost": freight,

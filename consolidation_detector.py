@@ -86,6 +86,48 @@ def get_coordinates(city, state, cache):
         print(f"Geocoding error for {city}, {state}: {e}")
         return None
 
+def get_coordinates_address(address, city, state, zip_code, cache):
+    """Geocode a full shipment destination (Address + City + State + ZIP) via Nominatim's
+    structured query, for per-shipment precision. Falls back to city/state (get_coordinates)
+    if the structured street-level lookup can't be resolved. Shares the same persistent cache
+    as get_coordinates, under separate "addr:"-prefixed keys."""
+    structured = {"country": "USA"}
+    if address:
+        structured["street"] = str(address).strip()
+    if city:
+        structured["city"] = str(city).strip()
+    if state:
+        structured["state"] = str(state).strip()
+    if zip_code:
+        structured["postalcode"] = str(zip_code).strip()
+
+    if len(structured) > 1:
+        key = "addr:" + json.dumps(structured, sort_keys=True)
+
+        if key in cache:
+            cached = cache[key]
+            if cached is not None:
+                return tuple(cached)
+        else:
+            time.sleep(1)  # Nominatim rate-limit courtesy, only for uncached lookups
+            try:
+                location = geolocator.geocode(structured)
+            except Exception as e:
+                print(f"Geocoding error for structured address {structured}: {e}")
+                location = None
+            cache[key] = list((location.latitude, location.longitude)) if location else None
+            _save_cache(cache)
+            if cache[key] is not None:
+                return tuple(cache[key])
+
+    # Structured street-level lookup unavailable or failed — fall back to city/state
+    if city and state:
+        fallback_key = f"{city.strip().lower()},{state.strip().lower()}"
+        if fallback_key not in cache:
+            time.sleep(1)
+        return get_coordinates(city, state, cache)
+    return None
+
 def calcular_distancia_millas(coords1, coords2):
     return geodesic(coords1, coords2).kilometers * 0.621371
 
