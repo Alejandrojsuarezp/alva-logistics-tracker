@@ -44,15 +44,22 @@ def _resolve_list_field(raw):
         return ", ".join([str(x) for x in raw if x])
     return str(raw) if raw else ""
 
+def _resolve_scalar(raw):
+    """Normalize an Airtable field value down to a clean string. Select/lookup fields can come
+    back as a plain string, a list (lookup rollups, multi-select), or a dict (e.g. a linked
+    record reference) — handle all three instead of assuming a plain string."""
+    if isinstance(raw, list):
+        return _resolve_scalar(raw[0]) if raw else ""
+    if isinstance(raw, dict):
+        return str(raw.get("name") or raw.get("value") or raw.get("text") or raw.get("id") or "")
+    return str(raw) if raw else ""
+
 def _resolve_warehouse(fields):
     """Warehouse comes from a lookup field on Loads, rolled up from linked shipments.
-    Airtable auto-names un-renamed lookup fields (e.g. "Warehouse (from Linked Shipments)"),
-    and the value itself can come back as a list, a scalar, or be missing — handle all three."""
+    Airtable auto-names un-renamed lookup fields (e.g. "Warehouse (from Linked Shipments)")."""
     for key, raw in fields.items():
         if key == "Warehouse" or key.startswith("Warehouse ("):
-            if isinstance(raw, list):
-                return str(raw[0]) if raw else ""
-            return str(raw) if raw else ""
+            return _resolve_scalar(raw)
     return ""
 
 def get_active_shipments():
@@ -175,11 +182,11 @@ def get_loads(id_to_shpt_number=None, debug=False):
             "load_number": fields.get("Load Number", ""),
             "carrier": carrier,
             "warehouse": warehouse,
-            "trailer_type": fields.get("Trailer Type", ""),
+            "trailer_type": _resolve_scalar(fields.get("Trailer Type", "")),
             "total_weight": f"{int(fields.get('Total Weight', 0) or 0):,}",
             "total_bundles": fields.get("Total Bundles", 0),
             "destinations": fields.get("Destinations", []),
-            "load_status": fields.get("Load Status", ""),
+            "load_status": _resolve_scalar(fields.get("Load Status", "")),
             "eta_pickup": format_date(fields.get("ETA Pickup", "")),
             "freight_cost": freight,
             "sales_value": sales,
