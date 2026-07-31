@@ -5,10 +5,15 @@
 import streamlit as st
 import pandas as pd
 import requests
+import time
+import html
+from collections import defaultdict
 from datetime import datetime, date
+import folium
+from streamlit_folium import st_folium
 from config import AIRTABLE_TOKEN, SHIPMENTS_TABLE, LOADS_TABLE, PRICING_TABLE, UPDATES_LOG_TABLE
-from airtable_connection import get_all_shipments, get_loads, get_pricing, get_updates_log
-from consolidation_detector import detectar_consolidaciones
+from airtable_connection import get_all_shipments, get_loads, get_pricing, get_updates_log, get_shipment_number_map
+from consolidation_detector import detectar_consolidaciones, get_coordinates, _load_cache
 
 st.set_page_config(
     page_title="X Logistics Tracker",
@@ -295,12 +300,12 @@ def fmt_date(x):
 
 def create_record(table_id, fields):
     url = f"https://api.airtable.com/v0/{BASE_ID}/{table_id}"
-    response = requests.post(url, headers=HEADERS, json={"fields": fields})
+    response = requests.post(url, headers=HEADERS, json={"fields": fields}, timeout=10)
     return response
 
 def update_record_api(table_id, record_id, fields):
     url = f"https://api.airtable.com/v0/{BASE_ID}/{table_id}/{record_id}"
-    response = requests.patch(url, headers=HEADERS, json={"fields": fields})
+    response = requests.patch(url, headers=HEADERS, json={"fields": fields}, timeout=10)
     return response
 
 # ── SIDEBAR ─────────────────────────────────────────────────────────────────
@@ -320,6 +325,7 @@ with st.sidebar:
         "Pricing",
         "Updates Log",
         "Consolidations",
+        "Live Map",
         "Truck Builder",
     ], label_visibility="collapsed")
 
@@ -579,8 +585,9 @@ elif pagina == "Loads":
     st.markdown('<div class="xlt-page-title">Loads</div>', unsafe_allow_html=True)
 
     with st.spinner("Loading..."):
-        loads     = get_loads()
-        quotes    = get_pricing()
+        shipment_map = get_shipment_number_map()
+        loads     = get_loads(shipment_map)
+        quotes    = get_pricing(shipment_map)
         shipments = get_all_shipments()
 
     col_f, col_btn = st.columns([4, 1])
@@ -830,9 +837,10 @@ elif pagina == "Updates Log":
     st.markdown('<div class="xlt-page-title">Updates Log</div>', unsafe_allow_html=True)
 
     with st.spinner("Loading..."):
-        updates   = get_updates_log()
+        shipment_map = get_shipment_number_map()
+        updates   = get_updates_log(shipment_map)
         shipments = get_all_shipments()
-        loads     = get_loads()
+        loads     = get_loads(shipment_map)
 
     col_f, col_btn = st.columns([4, 1])
     with col_f:
@@ -1051,6 +1059,93 @@ elif pagina == "Consolidations":
                         </div>
                         """, unsafe_allow_html=True)
                         st.markdown(f"**Suggested:** {op['trailer_sugerido']}")
+
+# ── LIVE MAP ──────────────────────────────────────────────────────────────────
+elif pagina == "Live Map":
+    st.markdown('<div class="xlt-page-title">Live Map</div>', unsafe_allow_html=True)
+    st.markdown('<div class="xlt-page-sub">Ready shipments with an assigned load, plotted by destination</div>', unsafe_allow_html=True)
+
+    WAREHOUSE_COORDS = {
+        "Texas":   (32.7767, -97.2894),
+        "Florida": (26.7153, -80.0534),
+    }
+
+    with st.spinner("Loading shipments..."):
+        shipments = get_all_shipments()
+        loads = get_loads()
+
+    load_carrier_map = {l["load_number"]: l["carrier"] for l in loads}
+
+    ready_with_load = [
+        s for s in shipments
+        if s.get("warehouse_status") == "Ready" and s.get("load_assigned")
+    ]
+
+    cache = _load_cache()
+    for s in ready_with_load:
+        key = f"{s['city'].strip().lower()},{s['state'].strip().lower()}"
+        if key not in cache:
+            time.sleep(1)  # Nominatim rate-limit courtesy, only for uncached lookups
+        s["coords"] = get_coordinates(s["city"], s["state"], cache)
+
+    by_load = defaultdict(list)
+    for s in ready_with_load:
+        by_load[s["load_assigned"]].append(s)
+
+    tx_loads = {s["load_assigned"] for s in ready_with_load if s.get("warehouse") == "Texas"}
+    fl_loads = {s["load_assigned"] for s in ready_with_load if s.get("warehouse") == "Florida"}
+    consolidated_pairs = sum(1 for grp in by_load.values() if len(grp) >= 2)
+
+    m = folium.Map(location=[31.5, -88.0], zoom_start=6, tiles="cartodbpositron")
+    folium.Marker(WAREHOUSE_COORDS["Texas"], tooltip="Texas Warehouse",
+                  icon=folium.Icon(color="blue", icon="star")).add_to(m)
+    folium.Marker(WAREHOUSE_COORDS["Florida"], tooltip="Florida Warehouse",
+                  icon=folium.Icon(color="green", icon="star")).add_to(m)
+
+    for s in ready_with_load:
+        if not s.get("coords"):
+            continue
+        wh = s.get("warehouse")
+        wh_coords = WAREHOUSE_COORDS.get(wh)
+        group = by_load.get(s["load_assigned"], [])
+        if len(group) >= 2:
+            color = "orange"
+        elif wh == "Texas":
+            color = "blue"
+        elif wh == "Florida":
+            color = "green"
+        else:
+            color = "gray"
+
+        carrier = load_carrier_map.get(s["load_assigned"].split(", ")[0], "—")
+        popup_html = (
+            f"<b>Shipment:</b> {html.escape(str(s.get('shipment_number','—')))}<br>"
+            f"<b>Load:</b> {html.escape(str(s.get('load_assigned','—')))}<br>"
+            f"<b>Carrier:</b> {html.escape(str(carrier))}<br>"
+            f"<b>Destination:</b> {html.escape(str(s.get('city','')))}, {html.escape(str(s.get('state','')))}"
+        )
+        folium.CircleMarker(
+            location=s["coords"], radius=7, color=color, fill=True,
+            fill_color=color, fill_opacity=0.85,
+            popup=folium.Popup(popup_html, max_width=250),
+        ).add_to(m)
+
+        if wh_coords:
+            folium.PolyLine([wh_coords, s["coords"]], color=color, weight=1.5, opacity=0.5).add_to(m)
+
+    st.markdown(f"""
+    <div style="position:fixed; top:90px; right:40px; z-index:9999; background:#ffffffee;
+                border:1px solid #e2e8f0; border-radius:10px; padding:14px 18px;
+                box-shadow:0 4px 14px rgba(0,0,0,0.08); min-width:160px;">
+      <div style="font-size:12px;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">Live Map Stats</div>
+      <div style="font-size:13px;color:#0f172a;margin-bottom:4px;">Texas loads: <b>{len(tx_loads)}</b></div>
+      <div style="font-size:13px;color:#0f172a;margin-bottom:4px;">Florida loads: <b>{len(fl_loads)}</b></div>
+      <div style="font-size:13px;color:#0f172a;margin-bottom:4px;">Consolidated pairs: <b>{consolidated_pairs}</b></div>
+      <div style="font-size:13px;color:#0f172a;">Total shipments: <b>{len(ready_with_load)}</b></div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st_folium(m, width=None, height=560)
 
 # ── TRUCK BUILDER ─────────────────────────────────────────────────────────────
 elif pagina == "Truck Builder":

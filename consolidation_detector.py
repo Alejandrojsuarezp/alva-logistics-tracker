@@ -26,6 +26,18 @@ geolocator = Nominatim(user_agent="alva_logistics")
 TRAILERS_PEQUENOS = ["Hotshot 40'"]
 TRAILERS_GRANDES_SUGERIDOS = ["Flatbed 48'", "Stepdeck 48'"]
 
+# Weight capacity by trailer type, for Type B "fits in existing load" checks.
+# LTL has no fixed weight capacity and is handled separately (skipped).
+CAPACIDAD_POR_TRAILER = {
+    "Hotshot 40'": PESO_MAX_HOTSHOT,
+    "Flatbed 48'": PESO_MAX_FLATBED,
+    "Flatbed 53'": PESO_MAX_FLATBED,
+    "Stepdeck 48'": PESO_MAX_STEPDECK,
+    "Stepdeck 53'": PESO_MAX_STEPDECK,
+    "Conestoga 48'": PESO_MAX_FLATBED,
+    "Conestoga 53'": PESO_MAX_FLATBED,
+}
+
 # ── PERSISTENT COORDS CACHE ──────────────────────────────────────────────────
 # Stores geocoded coordinates so Nominatim is never called twice for the same city.
 # File lives in the same directory as this script.
@@ -47,10 +59,10 @@ def _save_cache(cache):
     except Exception as e:
         print(f"Warning: could not save coords cache: {e}")
 
-def get_coordinates(city, state):
-    """Return (lat, lon) for city/state, using persistent cache to avoid repeat API calls."""
+def get_coordinates(city, state, cache):
+    """Return (lat, lon) for city/state. Reads/writes the shared in-memory cache dict
+    (see _load_cache) so callers only need to load it from disk once per run."""
     key = f"{city.strip().lower()},{state.strip().lower()}"
-    cache = _load_cache()
 
     if key in cache:
         cached = cache[key]
@@ -95,6 +107,8 @@ def _agrupar_por_warehouse(shipments):
         wh = s.get("warehouse")
         if wh in grupos:
             grupos[wh].append(s)
+        else:
+            print(f"Warning: shipment {s.get('shipment_number', '?')} has no recognized warehouse ('{wh}') — excluded from consolidation detection")
     return grupos
 
 def _detectar_tipo_a(shipments_sin_coords_filtradas):
@@ -143,7 +157,15 @@ def _detectar_tipo_b(shipments_filtrados, loads_activos):
             if distancia > DISTANCIA_MAX_MILLAS:
                 continue
 
-            capacidad_trailer = PESO_MAX_FLATBED
+            trailer_tipo = load.get("trailer_type", "")
+            if trailer_tipo == "LTL":
+                continue  # LTL has no fixed weight capacity to check against
+
+            capacidad_trailer = CAPACIDAD_POR_TRAILER.get(trailer_tipo)
+            if capacidad_trailer is None:
+                print(f"Warning: load {load.get('load_number','?')} has unrecognized trailer type '{trailer_tipo}' — skipping Type B capacity check")
+                continue
+
             try:
                 peso_actual_load = int(str(load.get("total_weight", "0")).replace(",", ""))
             except (ValueError, TypeError):
@@ -216,13 +238,14 @@ def detectar_consolidaciones():
     loads = get_loads()
     loads_activos = [l for l in loads if l.get("load_status") not in ("Shipped", "Delivered")]
 
+    cache = _load_cache()  # loaded ONCE for the whole run, then passed around
+
     print("Obteniendo coordenadas de shipments...")
     for s in shipments:
         key = f"{s['city'].strip().lower()},{s['state'].strip().lower()}"
-        cache = _load_cache()
         if key not in cache:
             time.sleep(1)  # Only sleep when actually calling Nominatim
-        s["coords"] = get_coordinates(s["city"], s["state"])
+        s["coords"] = get_coordinates(s["city"], s["state"], cache)
 
     print("Obteniendo coordenadas de loads activos...")
     for l in loads_activos:
@@ -234,10 +257,9 @@ def detectar_consolidaciones():
             ciudad = partes[0].strip()
             estado = partes[1].strip() if len(partes) > 1 else ""
             key = f"{ciudad.lower()},{estado.lower()}"
-            cache = _load_cache()
             if key not in cache:
                 time.sleep(1)
-            l["coords"] = get_coordinates(ciudad, estado)
+            l["coords"] = get_coordinates(ciudad, estado, cache)
         else:
             l["coords"] = None
 

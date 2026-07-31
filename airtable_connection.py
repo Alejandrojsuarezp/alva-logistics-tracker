@@ -27,7 +27,7 @@ def get_records(table_id, filter_formula=None):
         params["filterByFormula"] = filter_formula
     all_records = []
     while True:
-        response = requests.get(url, headers=HEADERS, params=params)
+        response = requests.get(url, headers=HEADERS, params=params, timeout=10)
         data = response.json()
         all_records.extend(data.get("records", []))
         offset = data.get("offset")
@@ -115,15 +115,20 @@ def get_all_shipments():
         })
     return shipments
 
-def get_loads():
-    records = get_records(LOADS_TABLE)
-    # Build a shipment_id -> shipment_number map once, so we can resolve
-    # "Linked Shipments" (multipleRecordLinks, returns record IDs) into readable numbers
+def get_shipment_number_map():
+    """Fetch Shipments once and build id -> Shipment Number, for resolving linked records elsewhere."""
     shipment_records = get_records(SHIPMENTS_TABLE)
-    id_to_shpt_number = {
+    return {
         r["id"]: r.get("fields", {}).get("Shipment Number", "")
         for r in shipment_records
     }
+
+def get_loads(id_to_shpt_number=None):
+    records = get_records(LOADS_TABLE)
+    # Resolves "Linked Shipments" (multipleRecordLinks, returns record IDs) into readable numbers.
+    # Accepts a pre-built map so callers needing several of these functions can fetch Shipments once.
+    if id_to_shpt_number is None:
+        id_to_shpt_number = get_shipment_number_map()
 
     loads = []
     for record in records:
@@ -150,6 +155,7 @@ def get_loads():
             "id": record["id"],
             "load_number": fields.get("Load Number", ""),
             "carrier": carrier,
+            "trailer_type": fields.get("Trailer Type", ""),
             "total_weight": f"{int(fields.get('Total Weight', 0) or 0):,}",
             "total_bundles": fields.get("Total Bundles", 0),
             "destinations": fields.get("Destinations", []),
@@ -163,13 +169,10 @@ def get_loads():
         })
     return loads
 
-def get_pricing():
+def get_pricing(id_to_shpt_number=None):
     records = get_records(PRICING_TABLE)
-    shipment_records = get_records(SHIPMENTS_TABLE)
-    id_to_shpt_number = {
-        r["id"]: r.get("fields", {}).get("Shipment Number", "")
-        for r in shipment_records
-    }
+    if id_to_shpt_number is None:
+        id_to_shpt_number = get_shipment_number_map()
 
     quotes = []
     for record in records:
@@ -194,13 +197,10 @@ def get_pricing():
         })
     return quotes
 
-def get_updates_log():
+def get_updates_log(id_to_shpt_number=None):
     records = get_records(UPDATES_LOG_TABLE)
-    shipment_records = get_records(SHIPMENTS_TABLE)
-    id_to_shpt_number = {
-        r["id"]: r.get("fields", {}).get("Shipment Number", "")
-        for r in shipment_records
-    }
+    if id_to_shpt_number is None:
+        id_to_shpt_number = get_shipment_number_map()
 
     updates = []
     for record in records:
@@ -248,5 +248,5 @@ def get_bundle_dimensions():
 
 def update_record(table_id, record_id, fields):
     url = f"https://api.airtable.com/v0/{BASE_ID}/{table_id}/{record_id}"
-    response = requests.patch(url, headers=HEADERS, json={"fields": fields})
+    response = requests.patch(url, headers=HEADERS, json={"fields": fields}, timeout=10)
     return response.json()
