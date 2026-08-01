@@ -17,14 +17,13 @@ from consolidation_detector import detectar_consolidaciones, get_coordinates_add
 st.set_page_config(
     page_title="X Logistics Tracker",
     page_icon="🚛",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    layout="wide"
 )
 
 # ── GLOBAL CSS ─────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap');
 
 html, body, [class*="css"] {
     font-family: 'DM Sans', sans-serif;
@@ -32,94 +31,98 @@ html, body, [class*="css"] {
 }
 
 #MainMenu, footer, header { visibility: hidden; }
-.block-container { padding: 2rem 2.5rem 2.5rem 2.5rem !important; }
+.block-container { padding: 1.25rem 2.5rem 2.5rem 2.5rem !important; }
 
-section[data-testid="stSidebar"] {
+body, .stApp {
+    background: #f5f5f4;
+}
+
+section[data-testid="stSidebar"] { display: none; }
+div[data-testid="stSidebarNav"] { display: none; }
+
+/* ── TOPBAR ─────────────────────────────────────────────────────────────── */
+.st-key-xlt_topbar {
     background: #ffffff;
-    border-right: 1px solid #f0f0f0;
-    width: 210px !important;
-    min-width: 210px !important;
+    border-bottom: 1px solid #e7e5e4;
+    margin: -1.25rem -2.5rem 1.5rem -2.5rem;
+    padding: 10px 2.5rem;
 }
-section[data-testid="stSidebar"] > div {
-    padding: 0 !important;
+.st-key-xlt_topbar div[data-testid="column"] {
+    display: flex;
+    align-items: center;
 }
-
-.xlt-brand {
+.xlt-logo {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 20px 16px 16px 16px;
-    border-bottom: 1px solid #f0f0f0;
-    margin-bottom: 8px;
 }
-.xlt-brand-dot {
-    width: 9px;
-    height: 9px;
-    border-radius: 50%;
-    background: #185FA5;
-    flex-shrink: 0;
-}
-.xlt-brand-name {
-    font-size: 13px;
-    font-weight: 600;
-    color: #0f172a;
-    line-height: 1.2;
-}
-
-.xlt-nav-section {
-    font-size: 11px;
-    font-weight: 600;
-    color: #94a3b8;
-    text-transform: uppercase;
-    letter-spacing: .07em;
-    padding: 10px 16px 4px 16px;
-}
-
-.xlt-nav-div {
-    height: 1px;
-    background: #f0f0f0;
-    margin: 6px 12px;
-}
-
-div[data-testid="stSidebarNav"] { display: none; }
-
-/* Custom sidebar nav — one st.button per item, styled to look like nav rows.
-   Active item uses Streamlit's native type="primary"; the rest use "secondary". */
-section[data-testid="stSidebar"] div[data-testid="stButton"] { margin: 2px 10px; }
-section[data-testid="stSidebar"] div[data-testid="stButton"] button {
+.xlt-logo-text {
     display: flex;
-    justify-content: flex-start;
-    align-items: center;
-    gap: 10px;
+    flex-direction: column;
+    line-height: 1.15;
+}
+.xlt-logo-title {
+    font-size: 13px;
+    font-weight: 800;
+    color: #1c1917;
+}
+.xlt-logo-sub {
+    font-size: 11px;
+    font-weight: 300;
+    color: #1c1917;
+}
+
+.st-key-xlt_topbar div[data-testid="stButton"] { margin: 0; }
+.st-key-xlt_topbar div[data-testid="stButton"] button {
     width: 100%;
     border: none;
-    border-radius: 8px;
-    padding: 9px 12px;
-    font-size: 14px;
+    border-radius: 0;
+    border-bottom: 2px solid transparent;
+    padding: 8px 4px;
+    font-size: 13px;
     font-weight: 500;
     background: transparent;
-    color: #475569;
+    color: #78716c;
     box-shadow: none;
-    transition: background .15s, color .15s;
+    transition: color .15s, border-color .15s;
 }
-section[data-testid="stSidebar"] div[data-testid="stButton"] button p {
-    font-size: 14px !important;
+.st-key-xlt_topbar div[data-testid="stButton"] button p {
+    font-size: 13px !important;
     margin: 0;
 }
-section[data-testid="stSidebar"] div[data-testid="stButton"] button:hover {
-    background: #f0f6ff;
-    color: #185FA5;
+.st-key-xlt_topbar div[data-testid="stButton"] button:hover {
+    color: #1c1917;
 }
-section[data-testid="stSidebar"] div[data-testid="stButton"] button[kind="primary"] {
-    background: #EFF6FF;
-    color: #185FA5;
-    font-weight: 600;
-    border-left: 3px solid #185FA5;
-    padding-left: 9px;
+.st-key-xlt_topbar div[data-testid="stButton"] button[kind="primary"] {
+    color: #1c1917;
+    font-weight: 700;
+    border-bottom: 2px solid #1c1917;
+    background: transparent;
     box-shadow: none;
 }
-section[data-testid="stSidebar"] div[data-testid="stButton"] button[kind="primary"]:hover {
-    background: #e6f1fb;
+.st-key-xlt_topbar div[data-testid="stButton"] button[kind="primary"]:hover {
+    color: #1c1917;
+}
+
+/* + New button (its own keyed container so it wins over the nav-item primary style) */
+.st-key-xlt_topbar_cta div[data-testid="stButton"] button[kind="primary"] {
+    background: #1c1917;
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    box-shadow: none;
+}
+.st-key-xlt_topbar_cta div[data-testid="stButton"] button[kind="primary"]:hover {
+    background: #3f3a37;
+    color: #ffffff;
+}
+.st-key-xlt_topbar_cta div[data-testid="stButton"] button:disabled {
+    background: #f5f5f4;
+    color: #a8a29e;
+    border: 1px solid #e7e5e4;
 }
 
 .badge {
@@ -147,59 +150,50 @@ section[data-testid="stSidebar"] div[data-testid="stButton"] button[kind="primar
 .badge-pickup   { background: #F5F3FF; color: #6d28d9; }
 
 .xlt-page-title {
-    font-size: 30px;
-    font-weight: 700;
+    font-size: 28px;
+    font-weight: 800;
     letter-spacing: -0.01em;
-    color: #0f172a;
+    color: #1c1917;
     margin-bottom: 4px;
 }
 .xlt-page-sub {
     font-size: 14px;
-    color: #94a3b8;
+    color: #a8a29e;
     margin-bottom: 1.75rem;
 }
 
 .xlt-metric {
+    position: relative;
     background: #ffffff;
-    border: 1px solid #f0f0f0;
-    border-radius: 14px;
-    padding: 22px 20px;
-    transition: transform .15s, box-shadow .15s;
-}
-.xlt-metric:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(15,23,42,0.06);
-}
-.xlt-metric-icon {
-    width: 40px;
-    height: 40px;
+    border: 1px solid #e7e5e4;
     border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 14px;
-    font-size: 19px;
+    padding: 20px 20px 16px 20px;
+    overflow: hidden;
 }
 .xlt-metric-val {
-    font-size: 32px;
-    font-weight: 700;
-    color: #0f172a;
+    font-size: 22px;
+    font-weight: 800;
+    color: #1c1917;
     line-height: 1;
 }
 .xlt-metric-lbl {
     font-size: 13px;
     font-weight: 500;
-    color: #94a3b8;
+    color: #a8a29e;
     margin-top: 6px;
+}
+.xlt-metric-bar {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    height: 2px;
 }
 
 .xlt-table-wrap {
     background: #ffffff;
-    border: 1px solid #f0f0f0;
-    border-radius: 12px;
+    border: 1px solid #e7e5e4;
+    border-radius: 10px;
     overflow: hidden;
     overflow-x: auto;
-    box-shadow: 0 1px 2px rgba(15,23,42,0.03);
 }
 .xlt-table {
     width: 100%;
@@ -207,39 +201,39 @@ section[data-testid="stSidebar"] div[data-testid="stButton"] button[kind="primar
     font-size: 14px;
 }
 .xlt-table th {
-    background: #fafafa;
+    background: #fafaf9;
     padding: 12px 16px;
     text-align: left;
-    font-size: 12px;
-    font-weight: 600;
+    font-size: 9px;
+    font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: .04em;
-    color: #94a3b8;
-    border-bottom: 1px solid #f0f0f0;
+    letter-spacing: .06em;
+    color: #a8a29e;
+    border-bottom: 1px solid #e7e5e4;
     white-space: nowrap;
 }
 .xlt-table td {
     padding: 13px 16px;
-    border-bottom: 1px solid #f8f8f8;
-    color: #1e293b;
+    border-bottom: 1px solid #e7e5e4;
+    color: #1c1917;
     font-size: 14px;
     white-space: nowrap;
 }
-.xlt-table tr:nth-child(even) td { background: #fafbfc; }
+.xlt-table tr:nth-child(even) td { background: #fafaf9; }
 .xlt-table tr:last-child td { border-bottom: none; }
-.xlt-table tr:hover td { background: #fafbff; }
+.xlt-table tr:hover td { background: #f5f5f4; }
 
 .xlt-section-card {
     background: #ffffff;
-    border: 1px solid #f0f0f0;
-    border-radius: 12px;
+    border: 1px solid #e7e5e4;
+    border-radius: 10px;
     padding: 18px 20px;
     margin-bottom: 1.25rem;
 }
 .xlt-section-title {
     font-size: 16px;
     font-weight: 700;
-    color: #0f172a;
+    color: #1c1917;
     margin-bottom: 14px;
     display: flex;
     align-items: center;
@@ -248,19 +242,18 @@ section[data-testid="stSidebar"] div[data-testid="stButton"] button[kind="primar
 
 .xlt-form-card {
     background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 14px;
+    border: 1px solid #e7e5e4;
+    border-radius: 10px;
     padding: 26px 28px;
     margin-top: 1.25rem;
-    box-shadow: 0 2px 8px rgba(15,23,42,0.04);
 }
 .xlt-form-title {
     font-size: 18px;
     font-weight: 700;
-    color: #0f172a;
+    color: #1c1917;
     margin-bottom: 20px;
     padding-bottom: 14px;
-    border-bottom: 2px solid #EFF6FF;
+    border-bottom: 1px solid #e7e5e4;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -268,26 +261,26 @@ section[data-testid="stSidebar"] div[data-testid="stButton"] button[kind="primar
 .xlt-form-group-label {
     font-size: 11px;
     font-weight: 700;
-    color: #94a3b8;
+    color: #a8a29e;
     text-transform: uppercase;
     letter-spacing: .06em;
     margin: 18px 0 6px 0;
 }
 .auto-badge {
     font-size: 11px;
-    background: #EFF6FF;
-    color: #185FA5;
+    background: #f5f5f4;
+    color: #78716c;
     padding: 2px 7px;
     border-radius: 4px;
     font-weight: 500;
 }
 .info-box {
-    background: #F8FAFC;
-    border: 1px solid #e2e8f0;
+    background: #fafaf9;
+    border: 1px solid #e7e5e4;
     border-radius: 8px;
     padding: 10px 14px;
     font-size: 13px;
-    color: #64748b;
+    color: #78716c;
     margin-bottom: 8px;
 }
 
@@ -299,7 +292,7 @@ div[data-testid="stDateInput"] label,
 div[data-testid="stMultiSelect"] label {
     font-size: 13px !important;
     font-weight: 600 !important;
-    color: #475569 !important;
+    color: #78716c !important;
 }
 div[data-testid="stButton"] button {
     font-family: 'DM Sans', sans-serif;
@@ -309,7 +302,14 @@ div[data-testid="stButton"] button {
     padding: 10px 16px;
 }
 div[data-testid="stButton"] button[kind="primary"] {
-    box-shadow: 0 2px 6px rgba(24,95,165,0.25);
+    background: #1c1917;
+    color: #ffffff;
+    border: none;
+    box-shadow: none;
+}
+div[data-testid="stButton"] button[kind="primary"]:hover {
+    background: #3f3a37;
+    color: #ffffff;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -456,42 +456,56 @@ def _get_live_map_data():
         "raw_first_fields": raw_loads[0].get("fields", {}) if raw_loads else {},
     }
 
-# ── SIDEBAR ─────────────────────────────────────────────────────────────────
+# ── TOPBAR ──────────────────────────────────────────────────────────────────
 NAV_ITEMS = [
-    ("Dashboard", "📊"),
-    ("Shipments", "📦"),
-    ("Loads", "🚛"),
-    ("Pricing", "💰"),
-    ("Updates Log", "📝"),
-    ("Consolidations", "🔗"),
-    ("Live Map", "🗺️"),
-    ("Truck Builder", "🧱"),
+    "Dashboard", "Shipments", "Loads", "Pricing",
+    "Updates Log", "Consolidations", "Live Map", "Truck Builder",
 ]
+# Pages that have a "New X" form — the topbar + New button is only active on these.
+CREATE_ACTION = {
+    "Shipments":   "show_shipment_form",
+    "Loads":       "show_load_form",
+    "Pricing":     "show_quote_form",
+    "Updates Log": "show_update_form",
+}
 if "pagina" not in st.session_state:
     st.session_state["pagina"] = "Dashboard"
 
-with st.sidebar:
-    st.markdown("""
-    <div class="xlt-brand">
-        <div class="xlt-brand-dot"></div>
-        <div class="xlt-brand-name">X Logistics<br>Tracker</div>
-    </div>
-    <div class="xlt-nav-section">Main</div>
-    """, unsafe_allow_html=True)
+with st.container(key="xlt_topbar"):
+    cols = st.columns([2.4] + [1] * len(NAV_ITEMS) + [1.2])
 
-    for label, icon in NAV_ITEMS:
-        is_active = st.session_state["pagina"] == label
-        if st.button(f"{icon}  {label}", key=f"nav_{label}", use_container_width=True,
-                     type="primary" if is_active else "secondary"):
-            st.session_state["pagina"] = label
-            st.rerun()
+    with cols[0]:
+        st.markdown("""
+        <div class="xlt-logo">
+            <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <line x1="3" y1="3" x2="19" y2="19" stroke="#1c1917" stroke-width="4" stroke-linecap="round"/>
+                <line x1="19" y1="3" x2="3" y2="19" stroke="#1c1917" stroke-width="4" stroke-linecap="round"/>
+            </svg>
+            <div class="xlt-logo-text">
+                <div class="xlt-logo-title">Logistics</div>
+                <div class="xlt-logo-sub">Tracker</div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
-    st.markdown(f"""
-    <div class="xlt-nav-div"></div>
-    <div style="padding:12px 16px;font-size:11px;color:#94a3b8;">
-        Texas · {datetime.now().strftime('%b %d, %Y')}
-    </div>
-    """, unsafe_allow_html=True)
+    for i, label in enumerate(NAV_ITEMS):
+        with cols[i + 1]:
+            is_active = st.session_state["pagina"] == label
+            if st.button(label, key=f"nav_{label}", use_container_width=True,
+                         type="primary" if is_active else "secondary"):
+                st.session_state["pagina"] = label
+                st.rerun()
+
+    with cols[-1]:
+        with st.container(key="xlt_topbar_cta"):
+            active_page = st.session_state["pagina"]
+            create_flag = CREATE_ACTION.get(active_page)
+            if create_flag:
+                if st.button("＋ New", key="topbar_new", use_container_width=True, type="primary"):
+                    st.session_state[create_flag] = True
+                    st.rerun()
+            else:
+                st.button("＋ New", key="topbar_new_disabled", use_container_width=True, disabled=True)
 
 pagina = st.session_state["pagina"]
 
@@ -512,19 +526,19 @@ if pagina == "Dashboard":
 
     c1, c2, c3, c4, c5 = st.columns(5)
     metrics = [
-        (c1, "⏳", "#EFF6FF", "#185FA5", len(pending),   "Pending Print"),
-        (c2, "⚙️", "#FFFBEB", "#b45309", len(in_prog),   "In Progress"),
-        (c3, "✅", "#F0FDF4", "#15803d", len(ready),     "Ready"),
-        (c4, "🚛", "#F8FAFC", "#64748b", len(shipped),   "Shipped"),
-        (c5, "📦", "#EEF2FF", "#4338ca", len(active_lds),"Active Loads"),
+        (c1, "#1d4ed8", len(pending),    "Pending Print"),
+        (c2, "#b45309", len(in_prog),    "In Progress"),
+        (c3, "#15803d", len(ready),      "Ready"),
+        (c4, "#64748b", len(shipped),    "Shipped"),
+        (c5, "#4338ca", len(active_lds), "Active Loads"),
     ]
-    for col, icon, bg, color, val, lbl in metrics:
+    for col, color, val, lbl in metrics:
         with col:
             st.markdown(f"""
-            <div class="xlt-metric" style="border-left:3px solid {color};">
-                <div class="xlt-metric-icon" style="background:{bg};color:{color};">{icon}</div>
+            <div class="xlt-metric">
                 <div class="xlt-metric-val">{val}</div>
                 <div class="xlt-metric-lbl">{lbl}</div>
+                <div class="xlt-metric-bar" style="background:{color};"></div>
             </div>""", unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
@@ -583,13 +597,11 @@ elif pagina == "Shipments":
     with st.spinner("Loading shipments..."):
         shipments = get_all_shipments()
 
-    col_f1, col_f2, col_btn = st.columns([2, 2, 1])
+    col_f1, col_f2 = st.columns([1, 1])
     with col_f1:
         filtro = st.selectbox("Filter by status", ["All","Pending Print","In Progress","Ready","Shipped"], label_visibility="collapsed")
     with col_f2:
         filtro_wh = st.selectbox("Filter by warehouse", ["All Warehouses","Texas","Florida"], label_visibility="collapsed")
-    with col_btn:
-        show_form = st.button("＋  New Shipment", type="primary", use_container_width=True)
 
     filtered = [s for s in shipments if filtro == "All" or s["warehouse_status"] == filtro]
     if filtro_wh != "All Warehouses":
@@ -643,9 +655,6 @@ elif pagina == "Shipments":
                     st.rerun()
                 else:
                     st.error(f"Error {r.status_code}: {r.text}")
-
-    if show_form:
-        st.session_state["show_shipment_form"] = True
 
     if st.session_state.get("show_shipment_form"):
         st.markdown('<div class="xlt-form-card">', unsafe_allow_html=True)
@@ -752,11 +761,7 @@ elif pagina == "Loads":
         quotes    = get_pricing(shipment_map)
         shipments = get_all_shipments()
 
-    col_f, col_btn = st.columns([4, 1])
-    with col_f:
-        filtro_ld = st.selectbox("Filter", ["All","Ready","Scheduled","In Transit","Shipped"], label_visibility="collapsed")
-    with col_btn:
-        show_load_form = st.button("＋  New Load", type="primary", use_container_width=True)
+    filtro_ld = st.selectbox("Filter", ["All","Ready","Scheduled","In Transit","Shipped"], label_visibility="collapsed")
 
     filtered_ld = [l for l in loads if filtro_ld == "All" or l["load_status"] == filtro_ld]
     st.markdown(f'<div class="xlt-page-sub">{len(filtered_ld)} loads</div>', unsafe_allow_html=True)
@@ -806,9 +811,6 @@ elif pagina == "Loads":
                         st.error(f"Error {r.status_code}: {r.text}")
         else:
             st.info("No loads available.")
-
-    if show_load_form:
-        st.session_state["show_load_form"] = True
 
     if st.session_state.get("show_load_form"):
         st.markdown('<div class="xlt-form-card">', unsafe_allow_html=True)
@@ -882,11 +884,7 @@ elif pagina == "Pricing":
         quotes    = get_pricing()
         shipments = get_all_shipments()
 
-    col_f, col_btn = st.columns([4, 1])
-    with col_f:
-        filtro_pr = st.selectbox("Filter", ["All","Pending","Selected","Lost"], label_visibility="collapsed")
-    with col_btn:
-        show_quote_form = st.button("＋  New Quote", type="primary", use_container_width=True)
+    filtro_pr = st.selectbox("Filter", ["All","Pending","Selected","Lost"], label_visibility="collapsed")
 
     filtered_pr = [q for q in quotes if filtro_pr == "All" or q["status"] == filtro_pr]
     st.markdown(f'<div class="xlt-page-sub">{len(filtered_pr)} quotes</div>', unsafe_allow_html=True)
@@ -937,9 +935,6 @@ elif pagina == "Pricing":
                         st.error(f"Error {r.status_code}: {r.text}")
         else:
             st.info("No quotes available.")
-
-    if show_quote_form:
-        st.session_state["show_quote_form"] = True
 
     if st.session_state.get("show_quote_form"):
         st.markdown('<div class="xlt-form-card">', unsafe_allow_html=True)
@@ -1009,11 +1004,7 @@ elif pagina == "Updates Log":
         shipments = get_all_shipments()
         loads     = get_loads(shipment_map)
 
-    col_f, col_btn = st.columns([4, 1])
-    with col_f:
-        filtro_ul = st.selectbox("Filter", ["All"] + UPDATE_TYPES + ["Flagged"], label_visibility="collapsed")
-    with col_btn:
-        show_update_form = st.button("＋  New Entry", type="primary", use_container_width=True)
+    filtro_ul = st.selectbox("Filter", ["All"] + UPDATE_TYPES + ["Flagged"], label_visibility="collapsed")
 
     if filtro_ul == "Flagged":
         filtered_ul = [u for u in updates if u.get("attention_flag")]
@@ -1051,9 +1042,6 @@ elif pagina == "Updates Log":
         st.info("No entries found.")
 
     st.markdown("<br>", unsafe_allow_html=True)
-
-    if show_update_form:
-        st.session_state["show_update_form"] = True
 
     if st.session_state.get("show_update_form"):
         st.markdown('<div class="xlt-form-card">', unsafe_allow_html=True)
@@ -1245,18 +1233,18 @@ elif pagina == "Live Map":
 
     c1, c2, c3, c4 = st.columns(4)
     live_map_metrics = [
-        (c1, "🚚", "#EFF6FF", COLOR_TEXAS,       data["tx_loads"],           "Texas Loads"),
-        (c2, "🚚", "#FFFBEB", "#b45309",          data["fl_loads"],           "Florida Loads"),
-        (c3, "🔗", "#FFF7ED", COLOR_CONSOLIDATED, data["consolidated_pairs"], "Consolidated Pairs"),
-        (c4, "📦", "#F8FAFC", "#64748b",          data["total_loads"],        "Total"),
+        (c1, COLOR_TEXAS,       data["tx_loads"],           "Texas Loads"),
+        (c2, "#b45309",         data["fl_loads"],           "Florida Loads"),
+        (c3, COLOR_CONSOLIDATED, data["consolidated_pairs"], "Consolidated Pairs"),
+        (c4, "#64748b",         data["total_loads"],        "Total"),
     ]
-    for col, icon, bg, color, val, lbl in live_map_metrics:
+    for col, color, val, lbl in live_map_metrics:
         with col:
             st.markdown(f"""
-            <div class="xlt-metric" style="border-left:3px solid {color};">
-                <div class="xlt-metric-icon" style="background:{bg};color:{color};">{icon}</div>
+            <div class="xlt-metric">
                 <div class="xlt-metric-val">{val}</div>
                 <div class="xlt-metric-lbl">{lbl}</div>
+                <div class="xlt-metric-bar" style="background:{color};"></div>
             </div>""", unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
