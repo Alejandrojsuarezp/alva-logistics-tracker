@@ -6,36 +6,18 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime
-from itertools import combinations
 from geopy.geocoders import Nominatim
 from geopy.distance import geodesic
 import time
 
 from config import (
-    DISTANCIA_MAX_MILLAS, PESO_MAX_FLATBED,
-    PESO_MAX_STEPDECK, PESO_MAX_HOTSHOT,
+    DISTANCIA_MAX_MILLAS,
     EMAIL_REMITENTE, EMAIL_CONTRASENA, EMAIL_DESTINATARIO,
     SHIPMENTS_TABLE
 )
-from airtable_connection import get_active_shipments, get_loads, update_record
+from airtable_connection import get_active_shipments, update_record
 
 geolocator = Nominatim(user_agent="alva_logistics")
-
-# Trailer types considered "small" for Type C upgrade detection
-TRAILERS_PEQUENOS = ["Hotshot 40'"]
-TRAILERS_GRANDES_SUGERIDOS = ["Flatbed 48'", "Stepdeck 48'"]
-
-# Weight capacity by trailer type, for Type B "fits in existing load" checks.
-# LTL has no fixed weight capacity and is handled separately (skipped).
-CAPACIDAD_POR_TRAILER = {
-    "Hotshot 40'": PESO_MAX_HOTSHOT,
-    "Flatbed 48'": PESO_MAX_FLATBED,
-    "Flatbed 53'": PESO_MAX_FLATBED,
-    "Stepdeck 48'": PESO_MAX_STEPDECK,
-    "Stepdeck 53'": PESO_MAX_STEPDECK,
-    "Conestoga 48'": PESO_MAX_FLATBED,
-    "Conestoga 53'": PESO_MAX_FLATBED,
-}
 
 # ── SHIPMENT COORDINATES ──────────────────────────────────────────────────────
 # Persistent cache lives on the Shipment record itself (Airtable "Coordinates" field,
@@ -98,26 +80,8 @@ def get_shipment_coordinates(shipment):
 
     return coords
 
-def get_coordinates(city, state):
-    """Return (lat, lon) for a city/state pair. Used only for Load destinations, which have
-    no Shipment record to cache coordinates against — always calls Nominatim."""
-    try:
-        location = geolocator.geocode(f"{city}, {state}, USA")
-        return (location.latitude, location.longitude) if location else None
-    except Exception as e:
-        print(f"Geocoding error for {city}, {state}: {e}")
-        return None
-
 def calcular_distancia_millas(coords1, coords2):
     return geodesic(coords1, coords2).kilometers * 0.621371
-
-def evaluar_trailer(peso_total):
-    if peso_total <= PESO_MAX_HOTSHOT:
-        return "Hotshot 40'", PESO_MAX_HOTSHOT
-    elif peso_total <= PESO_MAX_FLATBED:
-        return "Flatbed 48' o Stepdeck 48'", PESO_MAX_FLATBED
-    else:
-        return "Excede capacidad", 0
 
 def _filtrar_elegibles(shipments):
     """Split shipments into (eligible, excluded). A shipment is excluded if it's marked
@@ -140,172 +104,75 @@ def _agrupar_por_warehouse(shipments):
         grupos[s["warehouse"]].append(s)
     return grupos
 
-def _detectar_tipo_a(shipments_sin_coords_filtradas):
-    """Type A: two shipments without a load, close destinations, combined weight fits one trailer."""
-    oportunidades = []
-    for s1, s2 in combinations(shipments_sin_coords_filtradas, 2):
-        if not s1.get("coords") or not s2.get("coords"):
-            continue
-        distancia = calcular_distancia_millas(s1["coords"], s2["coords"])
-        peso_combinado = s1["weight"] + s2["weight"]
-        trailer_sugerido, capacidad = evaluar_trailer(peso_combinado)
-        espacio_disponible = capacidad - peso_combinado
+def _shipment_summary(s):
+    """Compact view of a shipment for the UI — used both for the base shipment and for matches."""
+    return {
+        "shipment_number": s.get("shipment_number", ""),
+        "destination": f"{s.get('city','')}, {s.get('state','')}",
+        "weight": s.get("weight", 0),
+        "trailer_type": s.get("trailer_type", ""),
+        "status": s.get("warehouse_status", ""),
+        "load_assigned": s.get("load_assigned", ""),
+    }
 
-        if distancia <= DISTANCIA_MAX_MILLAS and capacidad > 0:
-            oportunidades.append({
-                "tipo": "A",
-                "descripcion": "Dos shipments sin load — combinar en un trailer",
-                "shipment_1": s1["shipment_number"],
-                "destino_1": f"{s1['city']}, {s1['state']}",
-                "peso_1": s1["weight"],
-                "status_1": s1.get("warehouse_status", ""),
-                "load_1": s1.get("load_assigned", ""),
-                "shipment_2": s2["shipment_number"],
-                "destino_2": f"{s2['city']}, {s2['state']}",
-                "peso_2": s2["weight"],
-                "status_2": s2.get("warehouse_status", ""),
-                "load_2": s2.get("load_assigned", ""),
-                "distancia_millas": round(distancia, 1),
-                "peso_combinado": peso_combinado,
-                "trailer_sugerido": trailer_sugerido,
-                "espacio_disponible": espacio_disponible
-            })
-    return oportunidades
-
-def _detectar_tipo_b(shipments_filtrados, loads_activos):
-    """Type B: a shipment without load fits in an existing load with available space."""
-    oportunidades = []
-    for s in shipments_filtrados:
-        if not s.get("coords"):
-            continue
-        for load in loads_activos:
-            if load.get("warehouse") != s.get("warehouse"):
+def _construir_matches(shpts_con_coords):
+    """For each shipment, find its top 3 closest other shipments in the same warehouse group
+    (within DISTANCIA_MAX_MILLAS), ordered by distance ascending. Shipments with no candidate
+    within range are skipped entirely — nothing to show."""
+    resultados = []
+    for base in shpts_con_coords:
+        candidatos = []
+        for other in shpts_con_coords:
+            if other is base:
                 continue
-            load_coords = load.get("coords")
-            if not load_coords:
-                continue
-            distancia = calcular_distancia_millas(s["coords"], load_coords)
+            distancia = calcular_distancia_millas(base["coords"], other["coords"])
             if distancia > DISTANCIA_MAX_MILLAS:
                 continue
+            match = _shipment_summary(other)
+            match["distance_miles"] = round(distancia, 1)
+            match["combined_weight"] = base.get("weight", 0) + other.get("weight", 0)
+            candidatos.append(match)
 
-            trailer_tipo = load.get("trailer_type", "")
-            if trailer_tipo == "LTL":
-                continue  # LTL has no fixed weight capacity to check against
-
-            capacidad_trailer = CAPACIDAD_POR_TRAILER.get(trailer_tipo)
-            if capacidad_trailer is None:
-                print(f"Warning: load {load.get('load_number','?')} has unrecognized trailer type '{trailer_tipo}' — skipping Type B capacity check")
-                continue
-
-            try:
-                peso_actual_load = int(str(load.get("total_weight", "0")).replace(",", ""))
-            except (ValueError, TypeError):
-                peso_actual_load = 0
-            espacio_disponible = capacidad_trailer - peso_actual_load
-
-            if espacio_disponible >= s["weight"]:
-                oportunidades.append({
-                    "tipo": "B",
-                    "descripcion": "Shipment sin load cabe en un load existente",
-                    "shipment_1": s["shipment_number"],
-                    "destino_1": f"{s['city']}, {s['state']}",
-                    "peso_1": s["weight"],
-                    "status_1": s.get("warehouse_status", ""),
-                    "load_1": s.get("load_assigned", ""),
-                    "load_existente": load.get("load_number", ""),
-                    "load_destino": load.get("destinations", ""),
-                    "distancia_millas": round(distancia, 1),
-                    "espacio_disponible_en_load": espacio_disponible,
-                    "trailer_sugerido": f"Agregar a {load.get('load_number','')}"
-                })
-    return oportunidades
-
-def _detectar_tipo_c(shipments_filtrados):
-    """Type C: two shipments each assigned a small trailer (e.g. Hotshot) that together
-    justify upgrading to one larger trailer."""
-    oportunidades = []
-    candidatos = [s for s in shipments_filtrados if s.get("trailer_type") in TRAILERS_PEQUENOS]
-
-    for s1, s2 in combinations(candidatos, 2):
-        if not s1.get("coords") or not s2.get("coords"):
+        if not candidatos:
             continue
-        distancia = calcular_distancia_millas(s1["coords"], s2["coords"])
-        peso_combinado = s1["weight"] + s2["weight"]
 
-        if distancia <= DISTANCIA_MAX_MILLAS and peso_combinado <= PESO_MAX_FLATBED:
-            oportunidades.append({
-                "tipo": "C",
-                "descripcion": "Dos shipments con trailer pequeño asignado — considerar upgrade",
-                "shipment_1": s1["shipment_number"],
-                "destino_1": f"{s1['city']}, {s1['state']}",
-                "peso_1": s1["weight"],
-                "status_1": s1.get("warehouse_status", ""),
-                "load_1": s1.get("load_assigned", ""),
-                "trailer_actual_1": s1.get("trailer_type", ""),
-                "shipment_2": s2["shipment_number"],
-                "destino_2": f"{s2['city']}, {s2['state']}",
-                "peso_2": s2["weight"],
-                "status_2": s2.get("warehouse_status", ""),
-                "load_2": s2.get("load_assigned", ""),
-                "trailer_actual_2": s2.get("trailer_type", ""),
-                "distancia_millas": round(distancia, 1),
-                "peso_combinado": peso_combinado,
-                "trailer_sugerido": "Flatbed 48' (upgrade) — revisar pricing con brokers"
-            })
-    return oportunidades
+        candidatos.sort(key=lambda m: m["distance_miles"])
+        resultados.append({
+            "shipment": _shipment_summary(base),
+            "matches": candidatos[:3],
+        })
+    return resultados
 
 def detectar_consolidaciones():
     """
     Returns a dict: {"Texas": [...], "Florida": [...], "excluded": [...]}
-    The Texas/Florida lists contain opportunities of Type A, B and C for that warehouse only —
-    shipments from different warehouses are never compared against each other. "excluded" lists
-    active shipments that were skipped from detection entirely, with a reason each.
+    Each Texas/Florida entry is {"shipment": {...}, "matches": [...]} — a shipment's top 3
+    closest other shipments in the same warehouse, ordered by distance (shortest first).
+    Shipments from different warehouses are never compared against each other. "excluded"
+    lists active shipments that were skipped from detection entirely, with a reason each.
     """
     print("Obteniendo shipments activos de Airtable...")
     shipments = get_active_shipments()
     shipments, excluded = _filtrar_elegibles(shipments)
     print(f"Shipments elegibles: {len(shipments)} — excluidos: {len(excluded)}")
 
-    print("Obteniendo loads activos...")
-    loads = get_loads()
-    loads_activos = [l for l in loads if l.get("load_status") not in ("Shipped", "Delivered")]
-
     print("Obteniendo coordenadas de shipments...")
     for s in shipments:
         s["coords"] = get_shipment_coordinates(s)
-
-    print("Obteniendo coordenadas de loads activos...")
-    for l in loads_activos:
-        destinos = l.get("destinations", "")
-        if isinstance(destinos, list):
-            destinos = destinos[0] if destinos else ""
-        if destinos and "," in str(destinos):
-            partes = str(destinos).split(",")
-            ciudad = partes[0].strip()
-            estado = partes[1].strip() if len(partes) > 1 else ""
-            time.sleep(1)  # Nominatim rate-limit courtesy — always a live call, no cache
-            l["coords"] = get_coordinates(ciudad, estado)
-        else:
-            l["coords"] = None
 
     grupos = _agrupar_por_warehouse(shipments)
     resultado = {"Texas": [], "Florida": [], "excluded": excluded}
 
     for warehouse, shpts_wh in grupos.items():
         shpts_con_coords = [s for s in shpts_wh if s.get("coords")]
-
-        tipo_a = _detectar_tipo_a(shpts_con_coords)
-        tipo_b = _detectar_tipo_b(shpts_con_coords, loads_activos)
-        tipo_c = _detectar_tipo_c(shpts_con_coords)
-
-        resultado[warehouse] = tipo_a + tipo_b + tipo_c
+        resultado[warehouse] = _construir_matches(shpts_con_coords)
 
     return resultado
 
 def enviar_email_consolidacion(resultado_por_warehouse):
     resultado_por_warehouse = {k: v for k, v in resultado_por_warehouse.items() if k in ("Texas", "Florida")}
-    total_oportunidades = sum(len(v) for v in resultado_por_warehouse.values())
-    if total_oportunidades == 0:
+    total_shipments = sum(len(v) for v in resultado_por_warehouse.values())
+    if total_shipments == 0:
         print("No hay oportunidades que reportar.")
         return
 
@@ -313,27 +180,23 @@ def enviar_email_consolidacion(resultado_por_warehouse):
     cuerpo = f"DETECTOR DE CONSOLIDACION - ALVA LOGISTICS\n"
     cuerpo += f"Fecha: {fecha}\n"
     cuerpo += "=" * 50 + "\n\n"
-    cuerpo += f"{total_oportunidades} OPORTUNIDAD(ES) DETECTADA(S) EN TOTAL\n\n"
+    cuerpo += f"{total_shipments} SHIPMENT(S) CON OPORTUNIDADES DE CONSOLIDACION\n\n"
 
-    for warehouse, oportunidades in resultado_por_warehouse.items():
+    for warehouse, entradas in resultado_por_warehouse.items():
         cuerpo += "=" * 50 + "\n"
-        cuerpo += f"{warehouse.upper()} WAREHOUSE — {len(oportunidades)} oportunidad(es)\n"
+        cuerpo += f"{warehouse.upper()} WAREHOUSE — {len(entradas)} shipment(s)\n"
         cuerpo += "=" * 50 + "\n\n"
 
-        for i, op in enumerate(oportunidades, 1):
-            cuerpo += f"OPORTUNIDAD #{i} — Tipo {op['tipo']}\n"
-            cuerpo += f"  {op['descripcion']}\n"
-            if op["tipo"] in ("A", "C"):
-                cuerpo += f"  Shipment 1 : {op['shipment_1']} -> {op['destino_1']} ({op['peso_1']:,} lbs)\n"
-                cuerpo += f"  Shipment 2 : {op['shipment_2']} -> {op['destino_2']} ({op['peso_2']:,} lbs)\n"
-                cuerpo += f"  Distancia  : {op['distancia_millas']} millas\n"
-                cuerpo += f"  Peso total : {op['peso_combinado']:,} lbs\n"
-            elif op["tipo"] == "B":
-                cuerpo += f"  Shipment   : {op['shipment_1']} -> {op['destino_1']} ({op['peso_1']:,} lbs)\n"
-                cuerpo += f"  Load       : {op['load_existente']} -> {op['load_destino']}\n"
-                cuerpo += f"  Distancia  : {op['distancia_millas']} millas\n"
-                cuerpo += f"  Espacio disponible en load: {op['espacio_disponible_en_load']:,} lbs\n"
-            cuerpo += f"  Sugerencia : {op['trailer_sugerido']}\n\n"
+        for entrada in entradas:
+            base = entrada["shipment"]
+            cuerpo += f"{base['shipment_number']} -> {base['destination']} ({base['weight']:,} lbs)\n"
+            for i, m in enumerate(entrada["matches"], 1):
+                cuerpo += (
+                    f"  #{i}: {m['shipment_number']} -> {m['destination']} "
+                    f"({m['weight']:,} lbs) — {m['distance_miles']} mi, "
+                    f"combined {m['combined_weight']:,} lbs\n"
+                )
+            cuerpo += "\n"
 
     cuerpo += "=" * 50 + "\n"
     cuerpo += "Alva Logistics Tracker — Script automatico"
@@ -341,7 +204,7 @@ def enviar_email_consolidacion(resultado_por_warehouse):
     mensaje = MIMEMultipart()
     mensaje["From"] = EMAIL_REMITENTE
     mensaje["To"] = EMAIL_DESTINATARIO
-    mensaje["Subject"] = f"Consolidacion Detectada - {total_oportunidades} Oportunidad(es) — {datetime.now().strftime('%m/%d/%Y')}"
+    mensaje["Subject"] = f"Consolidacion Detectada - {total_shipments} Shipment(s) — {datetime.now().strftime('%m/%d/%Y')}"
     mensaje.attach(MIMEText(cuerpo, "plain"))
 
     try:
@@ -364,14 +227,15 @@ if __name__ == "__main__":
 
     total = len(resultado.get("Texas", [])) + len(resultado.get("Florida", []))
     if total:
-        print(f"\n{total} oportunidad(es) detectada(s) en total")
+        print(f"\n{total} shipment(s) con oportunidades de consolidacion")
         for warehouse in ("Texas", "Florida"):
-            oportunidades = resultado.get(warehouse, [])
-            print(f"\n--- {warehouse.upper()} ({len(oportunidades)}) ---")
-            for i, op in enumerate(oportunidades, 1):
-                print(f"\nOPORTUNIDAD #{i} — Tipo {op['tipo']}")
-                print(f"  {op['descripcion']}")
-                print(f"  Sugerencia: {op['trailer_sugerido']}")
+            entradas = resultado.get(warehouse, [])
+            print(f"\n--- {warehouse.upper()} ({len(entradas)}) ---")
+            for entrada in entradas:
+                base = entrada["shipment"]
+                print(f"\n{base['shipment_number']} -> {base['destination']} ({base['weight']:,} lbs)")
+                for i, m in enumerate(entrada["matches"], 1):
+                    print(f"  #{i}: {m['shipment_number']} -> {m['destination']} — {m['distance_miles']} mi")
         enviar_email_consolidacion(resultado)
     else:
         print("No se detectaron oportunidades de consolidacion.")

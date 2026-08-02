@@ -284,6 +284,138 @@ div[data-testid="stSidebarNav"] { display: none; }
     margin-bottom: 8px;
 }
 
+/* ── CONSOLIDATIONS ────────────────────────────────────────────────────────── */
+.xlt-cons-card {
+    background: #ffffff;
+    border: 1px solid #e7e5e4;
+    border-radius: 10px;
+    padding: 16px 18px;
+    margin-bottom: 14px;
+}
+.xlt-cons-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding-bottom: 12px;
+    margin-bottom: 12px;
+    border-bottom: 1px solid #e7e5e4;
+    flex-wrap: wrap;
+}
+.xlt-cons-header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+.xlt-cons-header-number {
+    font-size: 15px;
+    font-weight: 700;
+    color: #1c1917;
+}
+.xlt-cons-header-dest {
+    font-size: 13px;
+    color: #78716c;
+}
+.xlt-cons-header-trailer {
+    font-size: 12px;
+    color: #a8a29e;
+    background: #f5f5f4;
+    border-radius: 4px;
+    padding: 2px 7px;
+}
+.xlt-cons-header-weight {
+    font-size: 15px;
+    font-weight: 700;
+    color: #1c1917;
+    white-space: nowrap;
+}
+.xlt-cons-matches {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.xlt-cons-match {
+    flex: 1 1 0;
+    min-width: 200px;
+    background: #fafaf9;
+    border: 1px solid #e7e5e4;
+    border-radius: 8px;
+    padding: 12px 14px;
+}
+.xlt-cons-match-best {
+    background: #F0FDF4;
+    border-color: #bbf7d0;
+}
+.xlt-cons-match-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #a8a29e;
+    font-size: 12px;
+    font-style: italic;
+}
+.xlt-cons-rank {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: #a8a29e;
+    margin-bottom: 6px;
+}
+.xlt-cons-rank-best {
+    color: #15803d;
+}
+.xlt-cons-match-number {
+    font-size: 14px;
+    font-weight: 700;
+    color: #1c1917;
+}
+.xlt-cons-match-dest {
+    font-size: 12px;
+    color: #78716c;
+    margin-bottom: 10px;
+}
+.xlt-cons-weights {
+    background: #ffffff;
+    border: 1px solid #e7e5e4;
+    border-radius: 6px;
+    padding: 8px 10px;
+    margin-bottom: 10px;
+}
+.xlt-cons-weight-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #78716c;
+    padding: 2px 0;
+}
+.xlt-cons-weight-divider {
+    height: 1px;
+    background: #e7e5e4;
+    margin: 4px 0;
+}
+.xlt-cons-weight-combined {
+    font-weight: 700;
+    color: #15803d;
+    font-size: 13px;
+}
+.xlt-cons-distance {
+    display: inline-block;
+    background: #f5f5f4;
+    color: #57534e;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 9px;
+    border-radius: 20px;
+    margin-bottom: 8px;
+}
+.xlt-cons-match-footer {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
 div[data-testid="stSelectbox"] label,
 div[data-testid="stTextInput"] label,
 div[data-testid="stNumberInput"] label,
@@ -1095,15 +1227,13 @@ elif pagina == "Updates Log":
 # ── CONSOLIDATIONS ───────────────────────────────────────────────────────────
 elif pagina == "Consolidations":
     st.markdown('<div class="xlt-page-title">Consolidation Detector</div>', unsafe_allow_html=True)
-    st.markdown('<div class="xlt-page-sub">Analyzes active shipments per warehouse and detects consolidation opportunities</div>', unsafe_allow_html=True)
+    st.markdown('<div class="xlt-page-sub">Top 3 closest shipment matches per shipment, grouped by warehouse</div>', unsafe_allow_html=True)
 
     st.markdown("""
     <div class="info-box">
         Analyzes shipments with status <strong>Pending Print</strong>, <strong>In Progress</strong> and <strong>Ready</strong> (excludes Pick Up = Yes).
-        Texas and Florida shipments are never compared against each other — results are grouped by warehouse.<br>
-        <strong>Type A</strong> — Two shipments without a load, close destinations, fit in one trailer<br>
-        <strong>Type B</strong> — A shipment without load that fits in an existing load with available space<br>
-        <strong>Type C</strong> — Two shipments with small trailers assigned that together justify upgrading to a larger trailer
+        Texas and Florida shipments are never compared against each other. For each shipment, the 3 closest other shipments
+        in the same warehouse are shown as candidate matches, ordered by distance (shortest first).
     </div>
     """, unsafe_allow_html=True)
 
@@ -1113,110 +1243,104 @@ elif pagina == "Consolidations":
 
     if "consolidaciones" in st.session_state:
         resultado = st.session_state["consolidaciones"]
-        total = len(resultado.get("Texas", [])) + len(resultado.get("Florida", []))
-
+        texas_entries = resultado.get("Texas", [])
+        florida_entries = resultado.get("Florida", [])
         excluded = resultado.get("excluded", [])
+        excluded_pickup = [e for e in excluded if e["reason"] == "Pick Up = Yes"]
+
         if excluded:
             lines = "\n".join(f"- {e['shipment_number']}: {e['reason']}" for e in excluded)
             st.warning(f"{len(excluded)} shipment(s) skipped from detection:\n{lines}")
 
-        if total:
-            st.success(f"{total} opportunity(ies) detected across both warehouses")
+        texas_matches = sum(len(e["matches"]) for e in texas_entries)
+        florida_matches = sum(len(e["matches"]) for e in florida_entries)
+        unique_shipments = len(texas_entries) + len(florida_entries)
+
+        c1, c2, c3, c4 = st.columns(4)
+        summary_metrics = [
+            (c1, COLOR_TEXAS,   texas_matches,       "Texas Opportunities"),
+            (c2, COLOR_FLORIDA, florida_matches,     "Florida Opportunities"),
+            (c3, "#4338ca",     unique_shipments,     "Unique Shipments"),
+            (c4, "#b45309",     len(excluded_pickup), "Excluded (Pick Up)"),
+        ]
+        for col, color, val, lbl in summary_metrics:
+            with col:
+                st.markdown(f"""
+                <div class="xlt-metric">
+                    <div class="xlt-metric-val">{val}</div>
+                    <div class="xlt-metric-lbl">{lbl}</div>
+                    <div class="xlt-metric-bar" style="background:{color};"></div>
+                </div>""", unsafe_allow_html=True)
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        filtro_cons = st.selectbox(
+            "Filter", ["All", "Texas", "Florida", "Ready only", "No load only"],
+            label_visibility="collapsed",
+        )
+
+        combined = [("Texas", e) for e in texas_entries] + [("Florida", e) for e in florida_entries]
+        if filtro_cons == "Texas":
+            combined = [(wh, e) for wh, e in combined if wh == "Texas"]
+        elif filtro_cons == "Florida":
+            combined = [(wh, e) for wh, e in combined if wh == "Florida"]
+        elif filtro_cons == "Ready only":
+            combined = [(wh, e) for wh, e in combined if e["shipment"]["status"] == "Ready"]
+        elif filtro_cons == "No load only":
+            combined = [(wh, e) for wh, e in combined if not e["shipment"]["load_assigned"]]
+
+        if not combined:
+            st.info("No consolidation opportunities match the current filter.")
         else:
-            st.warning("No consolidation opportunities detected with current active shipments.")
+            def _cons_load_badge(load):
+                if load:
+                    return f'<span class="badge badge-pickup">{html.escape(str(load))}</span>'
+                return '<span class="badge badge-pending">No load</span>'
 
-        for warehouse in ["Texas", "Florida"]:
-            oportunidades = resultado.get(warehouse, [])
-            st.markdown(f'<div class="xlt-section-title">📍 {warehouse} Warehouse — {len(oportunidades)} opportunity(ies)</div>', unsafe_allow_html=True)
+            RANK_LABELS = ["Best match", "2nd option", "3rd option"]
 
-            if not oportunidades:
-                st.info(f"No opportunities detected for {warehouse}.")
-                continue
+            for warehouse, entrada in combined:
+                base = entrada["shipment"]
+                matches = entrada["matches"]
 
-            for i, op in enumerate(oportunidades, 1):
-                tipo = op.get("tipo", "A")
-                if tipo in ("A", "C"):
-                    title = f"#{i} — Type {tipo} — {op['destino_1']} + {op['destino_2']}"
-                else:
-                    title = f"#{i} — Type {tipo} — {op['destino_1']} → {op.get('load_existente','')}"
+                match_cols_html = ""
+                for i in range(3):
+                    if i < len(matches):
+                        m = matches[i]
+                        card_class = "xlt-cons-match xlt-cons-match-best" if i == 0 else "xlt-cons-match"
+                        rank_class = "xlt-cons-rank xlt-cons-rank-best" if i == 0 else "xlt-cons-rank"
+                        match_cols_html += f"""
+                        <div class="{card_class}">
+                            <div class="{rank_class}">{RANK_LABELS[i]}</div>
+                            <div class="xlt-cons-match-number">{html.escape(str(m['shipment_number']))}</div>
+                            <div class="xlt-cons-match-dest">{html.escape(str(m['destination']))}</div>
+                            <div class="xlt-cons-weights">
+                                <div class="xlt-cons-weight-row"><span>Base</span><span>{fmt_weight(base['weight'])} lbs</span></div>
+                                <div class="xlt-cons-weight-row"><span>Match</span><span>{fmt_weight(m['weight'])} lbs</span></div>
+                                <div class="xlt-cons-weight-divider"></div>
+                                <div class="xlt-cons-weight-row xlt-cons-weight-combined"><span>Combined</span><span>{fmt_weight(m['combined_weight'])} lbs</span></div>
+                            </div>
+                            <div class="xlt-cons-distance">{m['distance_miles']} mi</div>
+                            <div class="xlt-cons-match-footer">{badge_html(m['status'])}{_cons_load_badge(m['load_assigned'])}</div>
+                        </div>"""
+                    else:
+                        match_cols_html += '<div class="xlt-cons-match xlt-cons-match-empty">No further match</div>'
 
-                with st.expander(title):
-                    st.markdown(f"*{op['descripcion']}*")
-
-                    if tipo in ("A", "C"):
-                        c1, c2, c3 = st.columns(3)
-                        c1.metric("Distance", f"{op['distancia_millas']} miles")
-                        c2.metric("Combined weight", f"{op['peso_combinado']:,} lbs")
-                        c3.metric("Available space", f"{op.get('espacio_disponible', 0):,} lbs")
-
-                        def _status_badge(status):
-                            colors = {
-                                "Ready": "background:#F0FDF4;color:#15803d",
-                                "In Progress": "background:#FFFBEB;color:#b45309",
-                                "Pending Print": "background:#EFF6FF;color:#1d4ed8",
-                            }
-                            style = colors.get(status, "background:#F1EFE8;color:#5F5E5A")
-                            return f'<span style="{style};padding:2px 8px;border-radius:20px;font-size:12px;font-weight:500;">{status}</span>'
-
-                        def _load_badge(load):
-                            if load:
-                                return f'<span style="background:#F1EFE8;color:#5F5E5A;padding:2px 8px;border-radius:20px;font-size:12px;font-weight:500;">🚛 {load}</span>'
-                            return f'<span style="background:#FCEBEB;color:#A32D2D;padding:2px 8px;border-radius:20px;font-size:12px;font-weight:500;">No load</span>'
-
-                        st.markdown(f"""
-                        <div style="border:0.5px solid #f0f0f0;border-radius:8px;overflow:hidden;margin-top:8px;">
-                          <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:0.5px solid #f0f0f0;">
-                            <span style="font-size:13px;font-weight:500;min-width:130px;">{op['shipment_1']}</span>
-                            <span style="font-size:12px;color:#64748b;flex:1;">{op['destino_1']} · {op['peso_1']:,} lbs</span>
-                            {_status_badge(op.get('status_1',''))}
-                            {_load_badge(op.get('load_1',''))}
-                          </div>
-                          <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;">
-                            <span style="font-size:13px;font-weight:500;min-width:130px;">{op['shipment_2']}</span>
-                            <span style="font-size:12px;color:#64748b;flex:1;">{op['destino_2']} · {op['peso_2']:,} lbs</span>
-                            {_status_badge(op.get('status_2',''))}
-                            {_load_badge(op.get('load_2',''))}
-                          </div>
+                st.markdown(f"""
+                <div class="xlt-cons-card">
+                    <div class="xlt-cons-header">
+                        <div class="xlt-cons-header-left">
+                            <span class="xlt-cons-header-number">{html.escape(str(base['shipment_number']))}</span>
+                            <span class="xlt-cons-header-dest">{html.escape(str(base['destination']))}</span>
+                            <span class="xlt-cons-header-trailer">{html.escape(str(base['trailer_type']) or "—")}</span>
+                            {badge_html(base['status'])}
+                            {_cons_load_badge(base['load_assigned'])}
                         </div>
-                        """, unsafe_allow_html=True)
-
-                        if tipo == "C":
-                            st.caption(f"Currently: {op.get('trailer_actual_1','')} + {op.get('trailer_actual_2','')} — Exact savings vary by broker and route.")
-                        st.markdown(f"**Suggested:** {op['trailer_sugerido']}")
-
-                        # Warning if any shipment already has a load
-                        if op.get('load_1') or op.get('load_2'):
-                            st.warning("⚠️ One or more shipments already have a load assigned — verify before consolidating.")
-
-                    elif tipo == "B":
-                        c1, c2 = st.columns(2)
-                        c1.metric("Distance", f"{op['distancia_millas']} miles")
-                        c2.metric("Available space in load", f"{op['espacio_disponible_en_load']:,} lbs")
-
-                        def _status_badge_b(status):
-                            colors = {
-                                "Ready": "background:#F0FDF4;color:#15803d",
-                                "In Progress": "background:#FFFBEB;color:#b45309",
-                                "Pending Print": "background:#EFF6FF;color:#1d4ed8",
-                            }
-                            style = colors.get(status, "background:#F1EFE8;color:#5F5E5A")
-                            return f'<span style="{style};padding:2px 8px;border-radius:20px;font-size:12px;font-weight:500;">{status}</span>'
-
-                        st.markdown(f"""
-                        <div style="border:0.5px solid #f0f0f0;border-radius:8px;overflow:hidden;margin-top:8px;">
-                          <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:0.5px solid #f0f0f0;">
-                            <span style="font-size:13px;font-weight:500;min-width:130px;">{op['shipment_1']}</span>
-                            <span style="font-size:12px;color:#64748b;flex:1;">{op['destino_1']} · {op['peso_1']:,} lbs</span>
-                            {_status_badge_b(op.get('status_1',''))}
-                          </div>
-                          <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;">
-                            <span style="font-size:13px;font-weight:500;min-width:130px;">{op.get('load_existente','')}</span>
-                            <span style="font-size:12px;color:#64748b;flex:1;">{op.get('load_destino','')} · existing load</span>
-                            <span style="background:#F1EFE8;color:#5F5E5A;padding:2px 8px;border-radius:20px;font-size:12px;font-weight:500;">🚛 Active load</span>
-                          </div>
-                        </div>
-                        """, unsafe_allow_html=True)
-                        st.markdown(f"**Suggested:** {op['trailer_sugerido']}")
+                        <div class="xlt-cons-header-weight">{fmt_weight(base['weight'])} lbs</div>
+                    </div>
+                    <div class="xlt-cons-matches">{match_cols_html}</div>
+                </div>
+                """, unsafe_allow_html=True)
 
 # ── LIVE MAP ──────────────────────────────────────────────────────────────────
 elif pagina == "Live Map":
