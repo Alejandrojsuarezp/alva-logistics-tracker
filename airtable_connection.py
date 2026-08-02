@@ -105,6 +105,7 @@ def get_active_shipments():
             "delivery_date": fields.get("Requested Delivery Date", ""),
             "order_date": fields.get("Order Date", ""),
             "load_assigned": load_assigned,
+            "coordinates": fields.get("Coordinates", ""),
         })
     return shipments
 
@@ -130,7 +131,8 @@ def get_all_shipments():
             "warehouse_status": fields.get("Warehouse Status", ""),
             "pick_up": fields.get("Pick Up", "No"),
             "delivery_date": fields.get("Requested Delivery Date", ""),
-            "order_date": fields.get("Order Date", "")
+            "order_date": fields.get("Order Date", ""),
+            "coordinates": fields.get("Coordinates", ""),
         })
     return shipments
 

@@ -3,8 +3,6 @@
 # ============================================
 
 import smtplib
-import json
-import os
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime
@@ -16,9 +14,10 @@ import time
 from config import (
     DISTANCIA_MAX_MILLAS, PESO_MAX_FLATBED,
     PESO_MAX_STEPDECK, PESO_MAX_HOTSHOT,
-    EMAIL_REMITENTE, EMAIL_CONTRASENA, EMAIL_DESTINATARIO
+    EMAIL_REMITENTE, EMAIL_CONTRASENA, EMAIL_DESTINATARIO,
+    SHIPMENTS_TABLE
 )
-from airtable_connection import get_active_shipments, get_loads
+from airtable_connection import get_active_shipments, get_loads, update_record
 
 geolocator = Nominatim(user_agent="alva_logistics")
 
@@ -38,95 +37,76 @@ CAPACIDAD_POR_TRAILER = {
     "Conestoga 53'": PESO_MAX_FLATBED,
 }
 
-# ── PERSISTENT COORDS CACHE ──────────────────────────────────────────────────
-# Stores geocoded coordinates so Nominatim is never called twice for the same city.
-# File lives in the same directory as this script.
-CACHE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "coords_cache.json")
+# ── SHIPMENT COORDINATES ──────────────────────────────────────────────────────
+# Persistent cache lives on the Shipment record itself (Airtable "Coordinates" field,
+# format "lat,lon") — no local cache file. Once a shipment is geocoded, future runs
+# read it straight from Airtable and never call Nominatim for it again.
 
-def _load_cache():
-    if os.path.exists(CACHE_FILE):
-        try:
-            with open(CACHE_FILE, "r") as f:
-                return json.load(f)
-        except Exception:
-            return {}
-    return {}
-
-def _save_cache(cache):
+def _parse_coordinates(raw):
+    """Parse a Coordinates field value ('lat,lon' string) into a (lat, lon) tuple, or None."""
+    if not raw:
+        return None
     try:
-        with open(CACHE_FILE, "w") as f:
-            json.dump(cache, f, indent=2)
-    except Exception as e:
-        print(f"Warning: could not save coords cache: {e}")
+        lat_str, lon_str = str(raw).split(",")
+        return (float(lat_str.strip()), float(lon_str.strip()))
+    except (ValueError, AttributeError):
+        return None
 
-def get_coordinates(city, state, cache):
-    """Return (lat, lon) for city/state. Reads/writes the shared in-memory cache dict
-    (see _load_cache) so callers only need to load it from disk once per run."""
-    key = f"{city.strip().lower()},{state.strip().lower()}"
+def get_shipment_coordinates(shipment):
+    """Return (lat, lon) for a shipment. Uses the cached 'Coordinates' field on the Airtable
+    record if present — skips Nominatim entirely. Otherwise geocodes via Nominatim (structured
+    address, falling back to city/state) and writes the result back to that field so future
+    runs use the cached value."""
+    cached = _parse_coordinates(shipment.get("coordinates"))
+    if cached:
+        return cached
 
-    if key in cache:
-        cached = cache[key]
-        if cached is None:
-            return None
-        return tuple(cached)
+    structured = {"country": "USA"}
+    if shipment.get("address"):
+        structured["street"] = str(shipment["address"]).strip()
+    if shipment.get("city"):
+        structured["city"] = str(shipment["city"]).strip()
+    if shipment.get("state"):
+        structured["state"] = str(shipment["state"]).strip()
+    if shipment.get("zip_code"):
+        structured["postalcode"] = str(shipment["zip_code"]).strip()
 
-    # Not in cache — call Nominatim
+    coords = None
+    if len(structured) > 1:
+        time.sleep(1)  # Nominatim rate-limit courtesy
+        try:
+            location = geolocator.geocode(structured)
+            if location:
+                coords = (location.latitude, location.longitude)
+        except Exception as e:
+            print(f"Geocoding error for structured address {structured}: {e}")
+
+    if not coords and shipment.get("city") and shipment.get("state"):
+        time.sleep(1)
+        try:
+            location = geolocator.geocode(f"{shipment['city']}, {shipment['state']}, USA")
+            if location:
+                coords = (location.latitude, location.longitude)
+        except Exception as e:
+            print(f"Geocoding error for {shipment['city']}, {shipment['state']}: {e}")
+
+    if coords and shipment.get("id"):
+        try:
+            update_record(SHIPMENTS_TABLE, shipment["id"], {"Coordinates": f"{coords[0]},{coords[1]}"})
+        except Exception as e:
+            print(f"Warning: could not write coordinates back to Airtable for {shipment.get('shipment_number','?')}: {e}")
+
+    return coords
+
+def get_coordinates(city, state):
+    """Return (lat, lon) for a city/state pair. Used only for Load destinations, which have
+    no Shipment record to cache coordinates against — always calls Nominatim."""
     try:
         location = geolocator.geocode(f"{city}, {state}, USA")
-        if location:
-            coords = (location.latitude, location.longitude)
-            cache[key] = list(coords)
-            _save_cache(cache)
-            return coords
-        else:
-            cache[key] = None
-            _save_cache(cache)
-            return None
+        return (location.latitude, location.longitude) if location else None
     except Exception as e:
         print(f"Geocoding error for {city}, {state}: {e}")
         return None
-
-def get_coordinates_address(address, city, state, zip_code, cache):
-    """Geocode a full shipment destination (Address + City + State + ZIP) via Nominatim's
-    structured query, for per-shipment precision. Falls back to city/state (get_coordinates)
-    if the structured street-level lookup can't be resolved. Shares the same persistent cache
-    as get_coordinates, under separate "addr:"-prefixed keys."""
-    structured = {"country": "USA"}
-    if address:
-        structured["street"] = str(address).strip()
-    if city:
-        structured["city"] = str(city).strip()
-    if state:
-        structured["state"] = str(state).strip()
-    if zip_code:
-        structured["postalcode"] = str(zip_code).strip()
-
-    if len(structured) > 1:
-        key = "addr:" + json.dumps(structured, sort_keys=True)
-
-        if key in cache:
-            cached = cache[key]
-            if cached is not None:
-                return tuple(cached)
-        else:
-            time.sleep(1)  # Nominatim rate-limit courtesy, only for uncached lookups
-            try:
-                location = geolocator.geocode(structured)
-            except Exception as e:
-                print(f"Geocoding error for structured address {structured}: {e}")
-                location = None
-            cache[key] = list((location.latitude, location.longitude)) if location else None
-            _save_cache(cache)
-            if cache[key] is not None:
-                return tuple(cache[key])
-
-    # Structured street-level lookup unavailable or failed — fall back to city/state
-    if city and state:
-        fallback_key = f"{city.strip().lower()},{state.strip().lower()}"
-        if fallback_key not in cache:
-            time.sleep(1)
-        return get_coordinates(city, state, cache)
-    return None
 
 def calcular_distancia_millas(coords1, coords2):
     return geodesic(coords1, coords2).kilometers * 0.621371
@@ -139,18 +119,25 @@ def evaluar_trailer(peso_total):
     else:
         return "Excede capacidad", 0
 
-def _shipments_elegibles(shipments):
-    """Filter out shipments marked as Pick Up = Yes — they don't need logistics consolidation."""
-    return [s for s in shipments if s.get("pick_up") != "Yes"]
+def _filtrar_elegibles(shipments):
+    """Split shipments into (eligible, excluded). A shipment is excluded if it's marked
+    Pick Up = Yes (doesn't need logistics consolidation) or has no recognized warehouse.
+    Excluded entries carry a human-readable reason for surfacing in the UI."""
+    eligible = []
+    excluded = []
+    for s in shipments:
+        if s.get("pick_up") == "Yes":
+            excluded.append({"shipment_number": s.get("shipment_number", "?"), "reason": "Pick Up = Yes"})
+        elif s.get("warehouse") not in ("Texas", "Florida"):
+            excluded.append({"shipment_number": s.get("shipment_number", "?"), "reason": "No warehouse assigned"})
+        else:
+            eligible.append(s)
+    return eligible, excluded
 
 def _agrupar_por_warehouse(shipments):
     grupos = {"Texas": [], "Florida": []}
     for s in shipments:
-        wh = s.get("warehouse")
-        if wh in grupos:
-            grupos[wh].append(s)
-        else:
-            print(f"Warning: shipment {s.get('shipment_number', '?')} has no recognized warehouse ('{wh}') — excluded from consolidation detection")
+        grupos[s["warehouse"]].append(s)
     return grupos
 
 def _detectar_tipo_a(shipments_sin_coords_filtradas):
@@ -192,6 +179,8 @@ def _detectar_tipo_b(shipments_filtrados, loads_activos):
         if not s.get("coords"):
             continue
         for load in loads_activos:
+            if load.get("warehouse") != s.get("warehouse"):
+                continue
             load_coords = load.get("coords")
             if not load_coords:
                 continue
@@ -267,27 +256,23 @@ def _detectar_tipo_c(shipments_filtrados):
 
 def detectar_consolidaciones():
     """
-    Returns a dict: {"Texas": [...], "Florida": [...]}
-    Each list contains opportunities of Type A, B and C for that warehouse only.
-    Shipments from different warehouses are never compared against each other.
+    Returns a dict: {"Texas": [...], "Florida": [...], "excluded": [...]}
+    The Texas/Florida lists contain opportunities of Type A, B and C for that warehouse only —
+    shipments from different warehouses are never compared against each other. "excluded" lists
+    active shipments that were skipped from detection entirely, with a reason each.
     """
     print("Obteniendo shipments activos de Airtable...")
     shipments = get_active_shipments()
-    shipments = _shipments_elegibles(shipments)
-    print(f"Shipments elegibles (excluyendo Pick Up): {len(shipments)}")
+    shipments, excluded = _filtrar_elegibles(shipments)
+    print(f"Shipments elegibles: {len(shipments)} — excluidos: {len(excluded)}")
 
     print("Obteniendo loads activos...")
     loads = get_loads()
     loads_activos = [l for l in loads if l.get("load_status") not in ("Shipped", "Delivered")]
 
-    cache = _load_cache()  # loaded ONCE for the whole run, then passed around
-
     print("Obteniendo coordenadas de shipments...")
     for s in shipments:
-        key = f"{s['city'].strip().lower()},{s['state'].strip().lower()}"
-        if key not in cache:
-            time.sleep(1)  # Only sleep when actually calling Nominatim
-        s["coords"] = get_coordinates(s["city"], s["state"], cache)
+        s["coords"] = get_shipment_coordinates(s)
 
     print("Obteniendo coordenadas de loads activos...")
     for l in loads_activos:
@@ -298,15 +283,13 @@ def detectar_consolidaciones():
             partes = str(destinos).split(",")
             ciudad = partes[0].strip()
             estado = partes[1].strip() if len(partes) > 1 else ""
-            key = f"{ciudad.lower()},{estado.lower()}"
-            if key not in cache:
-                time.sleep(1)
-            l["coords"] = get_coordinates(ciudad, estado, cache)
+            time.sleep(1)  # Nominatim rate-limit courtesy — always a live call, no cache
+            l["coords"] = get_coordinates(ciudad, estado)
         else:
             l["coords"] = None
 
     grupos = _agrupar_por_warehouse(shipments)
-    resultado = {"Texas": [], "Florida": []}
+    resultado = {"Texas": [], "Florida": [], "excluded": excluded}
 
     for warehouse, shpts_wh in grupos.items():
         shpts_con_coords = [s for s in shpts_wh if s.get("coords")]
@@ -320,6 +303,7 @@ def detectar_consolidaciones():
     return resultado
 
 def enviar_email_consolidacion(resultado_por_warehouse):
+    resultado_por_warehouse = {k: v for k, v in resultado_por_warehouse.items() if k in ("Texas", "Florida")}
     total_oportunidades = sum(len(v) for v in resultado_por_warehouse.values())
     if total_oportunidades == 0:
         print("No hay oportunidades que reportar.")
@@ -372,10 +356,17 @@ def enviar_email_consolidacion(resultado_por_warehouse):
 
 if __name__ == "__main__":
     resultado = detectar_consolidaciones()
-    total = sum(len(v) for v in resultado.values())
+    excluidos = resultado.get("excluded", [])
+    if excluidos:
+        print(f"\n{len(excluidos)} shipment(s) excluido(s):")
+        for e in excluidos:
+            print(f"  - {e['shipment_number']}: {e['reason']}")
+
+    total = len(resultado.get("Texas", [])) + len(resultado.get("Florida", []))
     if total:
         print(f"\n{total} oportunidad(es) detectada(s) en total")
-        for warehouse, oportunidades in resultado.items():
+        for warehouse in ("Texas", "Florida"):
+            oportunidades = resultado.get(warehouse, [])
             print(f"\n--- {warehouse.upper()} ({len(oportunidades)}) ---")
             for i, op in enumerate(oportunidades, 1):
                 print(f"\nOPORTUNIDAD #{i} — Tipo {op['tipo']}")

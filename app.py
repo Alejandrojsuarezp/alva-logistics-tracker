@@ -12,7 +12,7 @@ import folium
 from streamlit_folium import st_folium
 from config import AIRTABLE_TOKEN, SHIPMENTS_TABLE, LOADS_TABLE, PRICING_TABLE, UPDATES_LOG_TABLE
 from airtable_connection import get_all_shipments, get_loads, get_pricing, get_updates_log, get_shipment_number_map, get_records
-from consolidation_detector import detectar_consolidaciones, get_coordinates_address, _load_cache
+from consolidation_detector import detectar_consolidaciones, get_shipment_coordinates
 
 st.set_page_config(
     page_title="X Logistics Tracker",
@@ -395,7 +395,6 @@ def _get_live_map_data():
     shipment_by_id = {s["id"]: s for s in shipments}
 
     ready_loads = [l for l in loads if l.get("load_status") == "Ready"]
-    cache = _load_cache()
 
     markers = []
     for l in ready_loads:
@@ -418,10 +417,7 @@ def _get_live_map_data():
             shipment = shipment_by_id.get(sid)
             if not shipment:
                 continue
-            coords = get_coordinates_address(
-                shipment.get("address", ""), shipment.get("city", ""),
-                shipment.get("state", ""), shipment.get("zip_code", ""), cache,
-            )
+            coords = get_shipment_coordinates(shipment)
             if not coords:
                 continue
             load_shipments.append({
@@ -1117,7 +1113,12 @@ elif pagina == "Consolidations":
 
     if "consolidaciones" in st.session_state:
         resultado = st.session_state["consolidaciones"]
-        total = sum(len(v) for v in resultado.values())
+        total = len(resultado.get("Texas", [])) + len(resultado.get("Florida", []))
+
+        excluded = resultado.get("excluded", [])
+        if excluded:
+            lines = "\n".join(f"- {e['shipment_number']}: {e['reason']}" for e in excluded)
+            st.warning(f"{len(excluded)} shipment(s) skipped from detection:\n{lines}")
 
         if total:
             st.success(f"{total} opportunity(ies) detected across both warehouses")
