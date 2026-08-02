@@ -111,9 +111,30 @@ def get_active_shipments():
 
 def get_all_shipments():
     records = get_records(SHIPMENTS_TABLE)
+
+    # Build id -> Load fields map, so each shipment's linked load can be resolved to
+    # its number/carrier/status/ETA without a separate round-trip per shipment.
+    load_records = get_records(LOADS_TABLE)
+    id_to_load = {r["id"]: r.get("fields", {}) for r in load_records}
+
     shipments = []
     for record in records:
         fields = record.get("fields", {})
+
+        # "Loads" is the reverse link from the Loads table. A shipment is expected to have
+        # at most one active load; if it's linked to more than one, only the first is shown.
+        linked_load_ids = fields.get("Loads", [])
+        if not isinstance(linked_load_ids, list):
+            linked_load_ids = []
+
+        load_number, carrier, load_status, eta_pickup = "", "", "", ""
+        if linked_load_ids:
+            load_fields = id_to_load.get(linked_load_ids[0], {})
+            load_number = load_fields.get("Load Number", "")
+            carrier = _resolve_list_field(load_fields.get("Carrier", ""))
+            load_status = _resolve_scalar(load_fields.get("Load Status", ""))
+            eta_pickup = format_date(load_fields.get("ETA Pickup", ""))
+
         shipments.append({
             "id": record["id"],
             "shipment_number": fields.get("Shipment Number", ""),
@@ -133,6 +154,10 @@ def get_all_shipments():
             "delivery_date": fields.get("Requested Delivery Date", ""),
             "order_date": fields.get("Order Date", ""),
             "coordinates": fields.get("Coordinates", ""),
+            "load_assigned": load_number,
+            "carrier": carrier,
+            "load_status": load_status,
+            "eta_pickup": eta_pickup,
         })
     return shipments
 

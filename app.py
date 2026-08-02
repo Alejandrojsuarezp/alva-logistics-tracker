@@ -416,6 +416,126 @@ div[data-testid="stSidebarNav"] { display: none; }
     flex-wrap: wrap;
 }
 
+/* ── PILLS (filter row) ────────────────────────────────────────────────────── */
+div[data-testid="stButtonGroup"] button {
+    border-radius: 20px !important;
+    border: 1px solid #e7e5e4 !important;
+    background: #ffffff !important;
+    color: #57534e !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    padding: 5px 14px !important;
+    box-shadow: none !important;
+}
+div[data-testid="stButtonGroup"] button:hover {
+    border-color: #1c1917 !important;
+    color: #1c1917 !important;
+}
+div[data-testid="stButtonGroup"] button[aria-checked="true"] {
+    background: #1c1917 !important;
+    border-color: #1c1917 !important;
+    color: #ffffff !important;
+}
+
+/* ── SHIPMENTS TABLE (built from st.columns rows, not a raw <table>, so each
+   row can carry a real More/Less button) ─────────────────────────────────── */
+.st-key-xlt_shp_table {
+    background: #ffffff;
+    border: 1px solid #e7e5e4;
+    border-radius: 10px;
+    overflow: hidden;
+}
+.st-key-xlt_shp_table div[data-testid="stHorizontalBlock"] {
+    padding: 8px 16px;
+    border-bottom: 1px solid #e7e5e4;
+    align-items: center;
+}
+.st-key-xlt_shp_table div[data-testid="stHorizontalBlock"]:hover {
+    background: #f5f5f4;
+}
+.st-key-xlt_shp_table div[data-testid="stHorizontalBlock"]:last-child {
+    border-bottom: none;
+}
+.st-key-xlt_shp_table div[data-testid="stButton"] button {
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    background: #f5f5f4;
+    color: #57534e;
+    border: 1px solid #e7e5e4;
+    box-shadow: none;
+}
+.st-key-xlt_shp_table div[data-testid="stButton"] button:hover {
+    background: #e7e5e4;
+    color: #1c1917;
+}
+.xlt-shp-header {
+    display: flex;
+    padding: 10px 16px;
+    background: #fafaf9;
+    border-bottom: 1px solid #e7e5e4;
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: #a8a29e;
+}
+.xlt-shp-header > div { flex: 1; }
+.xlt-shp-cell {
+    font-size: 14px;
+    color: #1c1917;
+}
+.xlt-shp-cell-strong {
+    font-weight: 700;
+}
+.xlt-wh-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+}
+.xlt-wh-texas { background: #EFF6FF; color: #1d4ed8; }
+.xlt-wh-florida { background: #FFFBEB; color: #b45309; }
+
+/* ── SHIPMENT DETAIL PANEL ─────────────────────────────────────────────────── */
+.xlt-detail-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 13px;
+    color: #1c1917;
+    padding: 5px 0;
+    border-bottom: 1px solid #f5f5f4;
+}
+.xlt-detail-row span:first-child {
+    color: #a8a29e;
+}
+.xlt-detail-row span:last-child {
+    font-weight: 600;
+    text-align: right;
+}
+.xlt-dims-box {
+    margin-top: 10px;
+    background: #fafaf9;
+    border: 1px solid #e7e5e4;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 13px;
+    color: #1c1917;
+}
+.xlt-dims-empty {
+    color: #a8a29e;
+    font-style: italic;
+}
+.st-key-xlt_shp_detail {
+    background: #ffffff;
+    border: 1px solid #e7e5e4;
+    border-radius: 10px;
+    padding: 20px 22px;
+}
+
 div[data-testid="stSelectbox"] label,
 div[data-testid="stTextInput"] label,
 div[data-testid="stNumberInput"] label,
@@ -724,65 +844,238 @@ elif pagina == "Shipments":
 
     with st.spinner("Loading shipments..."):
         shipments = get_all_shipments()
+        loads = get_loads()
 
-    col_f1, col_f2 = st.columns([1, 1])
-    with col_f1:
-        filtro = st.selectbox("Filter by status", ["All","Pending Print","In Progress","Ready","Shipped"], label_visibility="collapsed")
-    with col_f2:
-        filtro_wh = st.selectbox("Filter by warehouse", ["All Warehouses","Texas","Florida"], label_visibility="collapsed")
+    def _warehouse_badge(wh):
+        if wh == "Texas":
+            return '<span class="xlt-wh-badge xlt-wh-texas">Texas</span>'
+        if wh == "Florida":
+            return '<span class="xlt-wh-badge xlt-wh-florida">Florida</span>'
+        return '<span class="xlt-wh-badge">—</span>'
 
-    filtered = [s for s in shipments if filtro == "All" or s["warehouse_status"] == filtro]
-    if filtro_wh != "All Warehouses":
-        filtered = [s for s in filtered if s.get("warehouse") == filtro_wh]
+    # ── Filters row ──
+    col_status, col_wh, col_extra, col_search = st.columns([2.4, 1.6, 1.6, 1.6])
+    with col_status:
+        status_filter = st.pills(
+            "Status", ["All", "Pending Print", "In Progress", "Ready", "Shipped"],
+            default="All", required=True, key="shp_filter_status", label_visibility="collapsed",
+        )
+    with col_wh:
+        wh_filter = st.pills(
+            "Warehouse", ["All warehouses", "Texas", "Florida"],
+            default="All warehouses", required=True, key="shp_filter_wh", label_visibility="collapsed",
+        )
+    with col_extra:
+        extra_filter = st.pills(
+            "Extra", ["Pick Up only", "No load"], selection_mode="multi",
+            key="shp_filter_extra", label_visibility="collapsed",
+        ) or []
+    with col_search:
+        search_query = st.text_input(
+            "Search", placeholder="Search # or customer...",
+            key="shp_filter_search", label_visibility="collapsed",
+        )
+
+    # ── Apply filters ──
+    filtered = shipments
+    if status_filter != "All":
+        filtered = [s for s in filtered if s.get("warehouse_status") == status_filter]
+    if wh_filter != "All warehouses":
+        filtered = [s for s in filtered if s.get("warehouse") == wh_filter]
+    if "Pick Up only" in extra_filter:
+        filtered = [s for s in filtered if s.get("pick_up") == "Yes"]
+    if "No load" in extra_filter:
+        filtered = [s for s in filtered if not s.get("load_assigned")]
+    if search_query:
+        q = search_query.strip().lower()
+        filtered = [
+            s for s in filtered
+            if q in str(s.get("shipment_number", "")).lower() or q in str(s.get("customer", "")).lower()
+        ]
+
     st.markdown(f'<div class="xlt-page-sub">{len(filtered)} shipments</div>', unsafe_allow_html=True)
 
+    # ── Table ──
     if filtered:
-        rows = ""
-        for s in filtered:
-            pickup_badge = badge_html("Yes") if s.get("pick_up") == "Yes" else "—"
-            rows += f"""<tr>
-                <td><strong>{s.get('shipment_number','—')}</strong></td>
-                <td>{s.get('customer','—')}</td>
-                <td>{s.get('warehouse','—')}</td>
-                <td>{s.get('address','—')}</td>
-                <td>{s.get('city','')}, {s.get('state','')}</td>
-                <td>{fmt_weight(s.get('weight',''))}</td>
-                <td>{s.get('bundles','—')}</td>
-                <td>{s.get('elbows','—')}</td>
-                <td>{s.get('trailer_type','—')}</td>
-                <td>{fmt_date(s.get('delivery_date',''))}</td>
-                <td>{pickup_badge}</td>
-                <td>{badge_html(s.get('warehouse_status',''))}</td>
-            </tr>"""
-        st.markdown(f"""
-        <div class="xlt-table-wrap">
-        <table class="xlt-table">
-        <thead><tr>
-            <th>Shipment #</th><th>Customer</th><th>Warehouse</th><th>Address</th><th>City, State</th>
-            <th>Weight</th><th>Bundles</th><th>Elbows</th><th>Trailer</th><th>Delivery</th><th>Pick Up</th><th>Status</th>
-        </tr></thead>
-        <tbody>{rows}</tbody>
-        </table></div>""", unsafe_allow_html=True)
+        with st.container(key="xlt_shp_table"):
+            st.markdown("""
+            <div class="xlt-shp-header">
+                <div style="flex:1.3;">Shipment #</div>
+                <div style="flex:1.6;">Customer</div>
+                <div style="flex:1.6;">Destination</div>
+                <div style="flex:1.0;">Warehouse</div>
+                <div style="flex:0.9;">Weight</div>
+                <div style="flex:1.1;">Status</div>
+                <div style="flex:0.7;"></div>
+            </div>
+            """, unsafe_allow_html=True)
+
+            for s in filtered:
+                cols = st.columns([1.3, 1.6, 1.6, 1.0, 0.9, 1.1, 0.7])
+                with cols[0]:
+                    st.markdown(f'<div class="xlt-shp-cell xlt-shp-cell-strong">{html.escape(str(s.get("shipment_number") or "—"))}</div>', unsafe_allow_html=True)
+                with cols[1]:
+                    st.markdown(f'<div class="xlt-shp-cell">{html.escape(str(s.get("customer") or "—"))}</div>', unsafe_allow_html=True)
+                with cols[2]:
+                    st.markdown(f'<div class="xlt-shp-cell">{html.escape(str(s.get("city") or ""))}, {html.escape(str(s.get("state") or ""))}</div>', unsafe_allow_html=True)
+                with cols[3]:
+                    st.markdown(_warehouse_badge(s.get("warehouse")), unsafe_allow_html=True)
+                with cols[4]:
+                    st.markdown(f'<div class="xlt-shp-cell">{fmt_weight(s.get("weight",""))}</div>', unsafe_allow_html=True)
+                with cols[5]:
+                    st.markdown(badge_html(s.get("warehouse_status", "")), unsafe_allow_html=True)
+                with cols[6]:
+                    is_expanded = st.session_state.get("expanded_shipment") == s["id"]
+                    if st.button("Less" if is_expanded else "More", key=f"expand_{s['id']}", use_container_width=True):
+                        st.session_state["expanded_shipment"] = None if is_expanded else s["id"]
+                        st.rerun()
     else:
         st.info("No shipments found.")
 
-    st.markdown("<br>", unsafe_allow_html=True)
+    # ── Expanded detail panel (rendered below the table, not nested in the row) ──
+    expanded_id = st.session_state.get("expanded_shipment")
+    if expanded_id:
+        s = next((x for x in shipments if x["id"] == expanded_id), None)
+        if s is None:
+            st.session_state["expanded_shipment"] = None
+        else:
+            # Reset any open action sub-forms when switching to a different shipment.
+            if st.session_state.get("_shp_detail_tracker") != expanded_id:
+                for k in ("shp_action_status", "shp_action_log", "shp_action_quote", "shp_action_load"):
+                    st.session_state[k] = False
+                st.session_state["_shp_detail_tracker"] = expanded_id
 
-    with st.expander("✏️  Update Warehouse Status", expanded=False):
-        col_s, col_ns = st.columns(2)
-        with col_s:
-            shipment_sel = st.selectbox("Shipment", [s["shipment_number"] for s in shipments])
-        with col_ns:
-            nuevo_status = st.selectbox("New Status", ["Pending Print","In Progress","Ready","Shipped"])
-        if st.button("Update Status", type="primary"):
-            obj = next((s for s in shipments if s["shipment_number"] == shipment_sel), None)
-            if obj:
-                r = update_record_api(SHIPMENTS_TABLE, obj["id"], {"Warehouse Status": nuevo_status})
-                if r.status_code == 200:
-                    st.success(f"✅ {shipment_sel} → {nuevo_status}")
-                    st.rerun()
-                else:
-                    st.error(f"Error {r.status_code}: {r.text}")
+            st.markdown("<br>", unsafe_allow_html=True)
+            st.markdown(f'<div class="xlt-section-title">📋 Details — {html.escape(str(s.get("shipment_number","")))}</div>', unsafe_allow_html=True)
+
+            with st.container(key="xlt_shp_detail"):
+                d1, d2, d3, d4 = st.columns(4)
+
+                with d1:
+                    st.markdown('<div class="xlt-form-group-label">Product</div>', unsafe_allow_html=True)
+                    st.markdown(f"""
+                    <div class="xlt-detail-row"><span>Bundles</span><span>{s.get('bundles') or '—'}</span></div>
+                    <div class="xlt-detail-row"><span>Elbows</span><span>{s.get('elbows') or '—'}</span></div>
+                    <div class="xlt-detail-row"><span>Weight</span><span>{fmt_weight(s.get('weight',''))} lbs</span></div>
+                    <div class="xlt-detail-row"><span>Trailer Type Needed</span><span>{html.escape(str(s.get('trailer_type') or '—'))}</span></div>
+                    """, unsafe_allow_html=True)
+                    dims = s.get("dimensions")
+                    if dims:
+                        st.markdown(f'<div class="xlt-dims-box">{html.escape(str(dims))}</div>', unsafe_allow_html=True)
+                    else:
+                        st.markdown('<div class="xlt-dims-box xlt-dims-empty">No dimensions recorded yet</div>', unsafe_allow_html=True)
+
+                with d2:
+                    st.markdown('<div class="xlt-form-group-label">Destination</div>', unsafe_allow_html=True)
+                    st.markdown(f"""
+                    <div class="xlt-detail-row"><span>Address</span><span>{html.escape(str(s.get('address') or '—'))}</span></div>
+                    <div class="xlt-detail-row"><span>City, State, ZIP</span><span>{html.escape(str(s.get('city') or ''))}, {html.escape(str(s.get('state') or ''))} {html.escape(str(s.get('zip_code') or ''))}</span></div>
+                    <div class="xlt-detail-row"><span>Order Date</span><span>{fmt_date(s.get('order_date',''))}</span></div>
+                    <div class="xlt-detail-row"><span>Requested Delivery</span><span>{fmt_date(s.get('delivery_date',''))}</span></div>
+                    """, unsafe_allow_html=True)
+
+                with d3:
+                    st.markdown('<div class="xlt-form-group-label">Load & Carrier</div>', unsafe_allow_html=True)
+                    st.markdown(f"""
+                    <div class="xlt-detail-row"><span>Load #</span><span>{html.escape(str(s.get('load_assigned') or 'Not assigned'))}</span></div>
+                    <div class="xlt-detail-row"><span>Carrier</span><span>{html.escape(str(s.get('carrier') or '—'))}</span></div>
+                    <div class="xlt-detail-row"><span>Load Status</span><span>{html.escape(str(s.get('load_status') or '—'))}</span></div>
+                    <div class="xlt-detail-row"><span>ETA Pickup</span><span>{html.escape(str(s.get('eta_pickup') or '—'))}</span></div>
+                    <div class="xlt-detail-row"><span>Pick Up</span><span>{'Yes' if s.get('pick_up') == 'Yes' else 'No'}</span></div>
+                    """, unsafe_allow_html=True)
+                    st.markdown("<br>", unsafe_allow_html=True)
+                    st.markdown(_warehouse_badge(s.get("warehouse")), unsafe_allow_html=True)
+
+                with d4:
+                    st.markdown('<div class="xlt-form-group-label">Actions</div>', unsafe_allow_html=True)
+
+                    # Update warehouse status
+                    if st.button("Update Warehouse Status", key="shp_act_status_btn", type="primary", use_container_width=True):
+                        st.session_state["shp_action_status"] = not st.session_state.get("shp_action_status", False)
+                    if st.session_state.get("shp_action_status"):
+                        new_status = st.selectbox("New Status", ["Pending Print", "In Progress", "Ready", "Shipped"], key="shp_new_status_sel")
+                        if st.button("Confirm", key="shp_confirm_status", use_container_width=True):
+                            r = update_record_api(SHIPMENTS_TABLE, s["id"], {"Warehouse Status": new_status})
+                            if r.status_code == 200:
+                                st.success(f"✅ Updated to {new_status}")
+                                st.session_state["shp_action_status"] = False
+                                st.rerun()
+                            else:
+                                st.error(f"Error {r.status_code}: {r.text}")
+
+                    # Add update log entry
+                    if st.button("Add Update Log Entry", key="shp_act_log_btn", use_container_width=True):
+                        st.session_state["shp_action_log"] = not st.session_state.get("shp_action_log", False)
+                    if st.session_state.get("shp_action_log"):
+                        log_type = st.selectbox("Type", UPDATE_TYPES, key="shp_log_type")
+                        log_resp = st.selectbox("Responsible", RESPONSIBLE_OPTIONS, key="shp_log_resp")
+                        log_desc = st.text_area("Description", key="shp_log_desc", height=70)
+                        log_flag = st.checkbox("⚑ Attention Flag", key="shp_log_flag")
+                        if st.button("Save Entry", key="shp_confirm_log", use_container_width=True):
+                            if not log_desc:
+                                st.error("Description is required.")
+                            else:
+                                fields = {
+                                    "Type": log_type, "Description": log_desc,
+                                    "Responsible": log_resp, "Attention Flag": log_flag,
+                                    "Shipment": [s["id"]],
+                                }
+                                r = create_record(UPDATES_LOG_TABLE, fields)
+                                if r.status_code in (200, 201):
+                                    st.success("✅ Entry saved")
+                                    st.session_state["shp_action_log"] = False
+                                    st.rerun()
+                                else:
+                                    st.error(f"Error {r.status_code}: {r.text}")
+
+                    # Add quote to Pricing
+                    if st.button("Add Quote to Pricing", key="shp_act_quote_btn", use_container_width=True):
+                        st.session_state["shp_action_quote"] = not st.session_state.get("shp_action_quote", False)
+                    if st.session_state.get("shp_action_quote"):
+                        q_carrier = st.selectbox("Carrier", CARRIERS, key="shp_q_carrier")
+                        q_status = st.selectbox("Status", ["Pending", "Selected", "Lost"], key="shp_q_status")
+                        q_freight = st.number_input("Freight Cost ($)", min_value=0.0, step=50.0, key="shp_q_freight")
+                        q_sales = st.number_input("Sales Value ($)", min_value=0.0, step=50.0, key="shp_q_sales")
+                        if st.button("Create Quote", key="shp_confirm_quote", use_container_width=True):
+                            if q_freight == 0:
+                                st.error("Freight Cost is required.")
+                            else:
+                                fields = {
+                                    "Carrier": q_carrier, "Freight Cost": q_freight,
+                                    "Sales Value": q_sales, "Status": q_status,
+                                    "Shipments": [s["id"]],
+                                }
+                                r = create_record(PRICING_TABLE, fields)
+                                if r.status_code in (200, 201):
+                                    st.success("✅ Quote created")
+                                    st.session_state["shp_action_quote"] = False
+                                    st.rerun()
+                                else:
+                                    st.error(f"Error {r.status_code}: {r.text}")
+
+                    # Assign to load
+                    if st.button("Assign to Load", key="shp_act_load_btn", use_container_width=True):
+                        st.session_state["shp_action_load"] = not st.session_state.get("shp_action_load", False)
+                    if st.session_state.get("shp_action_load"):
+                        open_loads = [l for l in loads if l.get("load_status") != "Shipped"]
+                        load_options = [f"{l['load_number']} — {l.get('carrier','')}" for l in open_loads]
+                        if load_options:
+                            sel_load = st.selectbox("Load", load_options, key="shp_load_sel")
+                            if st.button("Confirm Assignment", key="shp_confirm_load", use_container_width=True):
+                                load_num = sel_load.split(" — ")[0]
+                                load_obj = next((l for l in open_loads if l["load_number"] == load_num), None)
+                                if load_obj:
+                                    existing_ids = load_obj.get("linked_shipment_ids", [])
+                                    new_ids = list(dict.fromkeys(existing_ids + [s["id"]]))
+                                    r = update_record_api(LOADS_TABLE, load_obj["id"], {"Linked Shipments": new_ids})
+                                    if r.status_code == 200:
+                                        st.success(f"✅ Assigned to {load_num}")
+                                        st.session_state["shp_action_load"] = False
+                                        st.rerun()
+                                    else:
+                                        st.error(f"Error {r.status_code}: {r.text}")
+                        else:
+                            st.info("No open loads available.")
 
     if st.session_state.get("show_shipment_form"):
         st.markdown('<div class="xlt-form-card">', unsafe_allow_html=True)
