@@ -704,6 +704,14 @@ def _get_live_map_data():
         "raw_first_fields": raw_loads[0].get("fields", {}) if raw_loads else {},
     }
 
+@st.cache_data(ttl=20, show_spinner=False)
+def _get_shipments_page_data():
+    """Cached so the 30s autorefresh timer (and every filter/expand button click, which
+    each trigger a full script rerun) don't re-hit Airtable every time — get_all_shipments()
+    + get_loads() together take 10s+ uncached, which can exceed the autorefresh interval
+    and leave the page stuck re-loading before a run ever finishes."""
+    return get_all_shipments(), get_loads()
+
 # ── TOPBAR ──────────────────────────────────────────────────────────────────
 NAV_ITEMS = [
     "Dashboard", "Shipments", "Loads", "Pricing",
@@ -842,9 +850,12 @@ if pagina == "Dashboard":
 elif pagina == "Shipments":
     st.markdown('<div class="xlt-page-title">Shipments</div>', unsafe_allow_html=True)
 
-    with st.spinner("Loading shipments..."):
-        shipments = get_all_shipments()
-        loads = get_loads()
+    try:
+        with st.spinner("Loading shipments..."):
+            shipments, loads = _get_shipments_page_data()
+    except Exception as e:
+        st.error(f"⚠️ Failed to load shipments from Airtable: {e}")
+        st.stop()
 
     def _warehouse_badge(wh):
         if wh == "Texas":

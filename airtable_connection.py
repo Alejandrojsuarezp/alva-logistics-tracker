@@ -29,6 +29,7 @@ def get_records(table_id, filter_formula=None):
     all_records = []
     while True:
         response = requests.get(url, headers=HEADERS, params=params, timeout=10)
+        response.raise_for_status()
         data = response.json()
         all_records.extend(data.get("records", []))
         offset = data.get("offset")
