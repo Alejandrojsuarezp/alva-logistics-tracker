@@ -439,7 +439,7 @@ div[data-testid="stButtonGroup"] button[aria-checked="true"] {
 
 /* ── SHIPMENTS TABLE (built from st.columns rows, not a raw <table>, so each
    row can carry a real More/Less button) ─────────────────────────────────── */
-.st-key-xlt_shp_table {
+[class*="st-key-xlt_shp_table"] {
     background: #ffffff;
     border: 1px solid #e7e5e4;
     border-radius: 10px;
@@ -705,11 +705,12 @@ def _get_live_map_data():
     }
 
 @st.cache_data(ttl=20, show_spinner=False)
-def _get_shipments_page_data():
+def _get_shipments_and_loads():
     """Cached so the 30s autorefresh timer (and every filter/expand button click, which
     each trigger a full script rerun) don't re-hit Airtable every time — get_all_shipments()
     + get_loads() together take 10s+ uncached, which can exceed the autorefresh interval
-    and leave the page stuck re-loading before a run ever finishes."""
+    and leave a page stuck re-loading before a run ever finishes. Shared by Dashboard and
+    Shipments, which both fetch the same two tables with no extra arguments."""
     return get_all_shipments(), get_loads()
 
 # ── TOPBAR ──────────────────────────────────────────────────────────────────
@@ -770,9 +771,12 @@ if pagina == "Dashboard":
     st.markdown('<div class="xlt-page-title">Operations Dashboard</div>', unsafe_allow_html=True)
     st.markdown(f'<div class="xlt-page-sub">{datetime.now().strftime("%A, %B %d %Y")} · Texas & Florida</div>', unsafe_allow_html=True)
 
-    with st.spinner("Loading data..."):
-        shipments = get_all_shipments()
-        loads = get_loads()
+    try:
+        with st.spinner("Loading data..."):
+            shipments, loads = _get_shipments_and_loads()
+    except Exception as e:
+        st.error(f"⚠️ Failed to load dashboard data from Airtable: {e}")
+        st.stop()
 
     pending    = [s for s in shipments if s["warehouse_status"] == "Pending Print"]
     in_prog    = [s for s in shipments if s["warehouse_status"] == "In Progress"]
@@ -852,7 +856,7 @@ elif pagina == "Shipments":
 
     try:
         with st.spinner("Loading shipments..."):
-            shipments, loads = _get_shipments_page_data()
+            shipments, loads = _get_shipments_and_loads()
     except Exception as e:
         st.error(f"⚠️ Failed to load shipments from Airtable: {e}")
         st.stop()
@@ -906,60 +910,44 @@ elif pagina == "Shipments":
 
     st.markdown(f'<div class="xlt-page-sub">{len(filtered)} shipments</div>', unsafe_allow_html=True)
 
-    # ── Table ──
-    if filtered:
-        with st.container(key="xlt_shp_table"):
-            st.markdown("""
-            <div class="xlt-shp-header">
-                <div style="flex:1.3;">Shipment #</div>
-                <div style="flex:1.6;">Customer</div>
-                <div style="flex:1.6;">Destination</div>
-                <div style="flex:1.0;">Warehouse</div>
-                <div style="flex:0.9;">Weight</div>
-                <div style="flex:1.1;">Status</div>
-                <div style="flex:0.7;"></div>
-            </div>
-            """, unsafe_allow_html=True)
+    # ── Row / detail-panel renderers (used below to interleave the detail panel
+    #    immediately after the row that was clicked, instead of after the whole table) ──
+    def _render_shipment_row(s):
+        cols = st.columns([1.3, 1.6, 1.6, 1.0, 0.9, 1.1, 0.7])
+        with cols[0]:
+            st.markdown(f'<div class="xlt-shp-cell xlt-shp-cell-strong">{html.escape(str(s.get("shipment_number") or "—"))}</div>', unsafe_allow_html=True)
+        with cols[1]:
+            st.markdown(f'<div class="xlt-shp-cell">{html.escape(str(s.get("customer") or "—"))}</div>', unsafe_allow_html=True)
+        with cols[2]:
+            st.markdown(f'<div class="xlt-shp-cell">{html.escape(str(s.get("city") or ""))}, {html.escape(str(s.get("state") or ""))}</div>', unsafe_allow_html=True)
+        with cols[3]:
+            st.markdown(_warehouse_badge(s.get("warehouse")), unsafe_allow_html=True)
+        with cols[4]:
+            st.markdown(f'<div class="xlt-shp-cell">{fmt_weight(s.get("weight",""))}</div>', unsafe_allow_html=True)
+        with cols[5]:
+            st.markdown(badge_html(s.get("warehouse_status", "")), unsafe_allow_html=True)
+        with cols[6]:
+            is_expanded = st.session_state.get("expanded_shipment") == s["id"]
+            if st.button("Less" if is_expanded else "More", key=f"expand_{s['id']}", use_container_width=True):
+                st.session_state["expanded_shipment"] = None if is_expanded else s["id"]
+                st.rerun()
 
-            for s in filtered:
-                cols = st.columns([1.3, 1.6, 1.6, 1.0, 0.9, 1.1, 0.7])
-                with cols[0]:
-                    st.markdown(f'<div class="xlt-shp-cell xlt-shp-cell-strong">{html.escape(str(s.get("shipment_number") or "—"))}</div>', unsafe_allow_html=True)
-                with cols[1]:
-                    st.markdown(f'<div class="xlt-shp-cell">{html.escape(str(s.get("customer") or "—"))}</div>', unsafe_allow_html=True)
-                with cols[2]:
-                    st.markdown(f'<div class="xlt-shp-cell">{html.escape(str(s.get("city") or ""))}, {html.escape(str(s.get("state") or ""))}</div>', unsafe_allow_html=True)
-                with cols[3]:
-                    st.markdown(_warehouse_badge(s.get("warehouse")), unsafe_allow_html=True)
-                with cols[4]:
-                    st.markdown(f'<div class="xlt-shp-cell">{fmt_weight(s.get("weight",""))}</div>', unsafe_allow_html=True)
-                with cols[5]:
-                    st.markdown(badge_html(s.get("warehouse_status", "")), unsafe_allow_html=True)
-                with cols[6]:
-                    is_expanded = st.session_state.get("expanded_shipment") == s["id"]
-                    if st.button("Less" if is_expanded else "More", key=f"expand_{s['id']}", use_container_width=True):
-                        st.session_state["expanded_shipment"] = None if is_expanded else s["id"]
-                        st.rerun()
-    else:
-        st.info("No shipments found.")
+    def _render_shipment_detail(s, should_scroll):
+        st.markdown('<div id="shp-detail-anchor"></div>', unsafe_allow_html=True)
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown(f'<div class="xlt-section-title">📋 Details — {html.escape(str(s.get("shipment_number","")))}</div>', unsafe_allow_html=True)
 
-    # ── Expanded detail panel (rendered below the table, not nested in the row) ──
-    expanded_id = st.session_state.get("expanded_shipment")
-    if expanded_id:
-        s = next((x for x in shipments if x["id"] == expanded_id), None)
-        if s is None:
-            st.session_state["expanded_shipment"] = None
-        else:
-            # Reset any open action sub-forms when switching to a different shipment.
-            if st.session_state.get("_shp_detail_tracker") != expanded_id:
-                for k in ("shp_action_status", "shp_action_log", "shp_action_quote", "shp_action_load"):
-                    st.session_state[k] = False
-                st.session_state["_shp_detail_tracker"] = expanded_id
+        if should_scroll:
+            st.iframe("""
+                <script>
+                setTimeout(function() {
+                    var el = window.parent.document.getElementById('shp-detail-anchor');
+                    if (el) { el.scrollIntoView({behavior: 'smooth', block: 'start'}); }
+                }, 100);
+                </script>
+            """, height=1)
 
-            st.markdown("<br>", unsafe_allow_html=True)
-            st.markdown(f'<div class="xlt-section-title">📋 Details — {html.escape(str(s.get("shipment_number","")))}</div>', unsafe_allow_html=True)
-
-            with st.container(key="xlt_shp_detail"):
+        with st.container(key="xlt_shp_detail"):
                 d1, d2, d3, d4 = st.columns(4)
 
                 with d1:
@@ -1087,6 +1075,62 @@ elif pagina == "Shipments":
                                         st.error(f"Error {r.status_code}: {r.text}")
                         else:
                             st.info("No open loads available.")
+
+    # ── Resolve the expanded shipment once, and whether it just opened/switched
+    #    (only then do we auto-scroll — not on every autorefresh/form rerun) ──
+    expanded_id = st.session_state.get("expanded_shipment")
+    detail_shipment = None
+    should_scroll = False
+    if expanded_id:
+        detail_shipment = next((x for x in shipments if x["id"] == expanded_id), None)
+        if detail_shipment is None:
+            st.session_state["expanded_shipment"] = None
+            expanded_id = None
+        elif st.session_state.get("_shp_detail_tracker") != expanded_id:
+            for k in ("shp_action_status", "shp_action_log", "shp_action_quote", "shp_action_load"):
+                st.session_state[k] = False
+            st.session_state["_shp_detail_tracker"] = expanded_id
+            should_scroll = True
+
+    expanded_idx = None
+    if expanded_id:
+        expanded_idx = next((i for i, s in enumerate(filtered) if s["id"] == expanded_id), None)
+
+    # ── Table, split around the expanded row so its detail panel renders
+    #    immediately below it instead of after the whole table ──
+    if filtered:
+        top_slice = filtered if expanded_idx is None else filtered[:expanded_idx + 1]
+        with st.container(key="xlt_shp_table"):
+            st.markdown("""
+            <div class="xlt-shp-header">
+                <div style="flex:1.3;">Shipment #</div>
+                <div style="flex:1.6;">Customer</div>
+                <div style="flex:1.6;">Destination</div>
+                <div style="flex:1.0;">Warehouse</div>
+                <div style="flex:0.9;">Weight</div>
+                <div style="flex:1.1;">Status</div>
+                <div style="flex:0.7;"></div>
+            </div>
+            """, unsafe_allow_html=True)
+            for s in top_slice:
+                _render_shipment_row(s)
+
+        if expanded_idx is not None:
+            _render_shipment_detail(detail_shipment, should_scroll)
+
+            bottom_slice = filtered[expanded_idx + 1:]
+            if bottom_slice:
+                with st.container(key="xlt_shp_table_bottom"):
+                    for s in bottom_slice:
+                        _render_shipment_row(s)
+    else:
+        st.info("No shipments found.")
+
+    # Expanded shipment doesn't match the active filters (e.g. filter changed while its
+    # panel was open) — still show it rather than silently collapsing it, just with no
+    # row to anchor under.
+    if expanded_id and expanded_idx is None and detail_shipment is not None:
+        _render_shipment_detail(detail_shipment, should_scroll)
 
     if st.session_state.get("show_shipment_form"):
         st.markdown('<div class="xlt-form-card">', unsafe_allow_html=True)
