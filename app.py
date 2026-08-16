@@ -416,6 +416,152 @@ div[data-testid="stSidebarNav"] { display: none; }
     flex-wrap: wrap;
 }
 
+/* ── PRICING (grouped by shipment, top-3 quotes per shipment) ────────────────
+   Group wrapper and quote-card wrapper are real st.container(key=...) elements
+   (not raw HTML), since each quote card also carries real Select/Lost buttons —
+   so they're styled via [class*="st-key-..."] wildcards, matching the technique
+   already used for xlt_shp_table/xlt_shp_table_bottom. ─────────────────────── */
+[class*="st-key-xlt_price_group_"] {
+    background: #ffffff;
+    border: 1px solid #e7e5e4;
+    border-radius: 10px;
+    padding: 16px 18px;
+    margin-bottom: 14px;
+}
+.xlt-price-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding-bottom: 12px;
+    margin-bottom: 12px;
+    border-bottom: 1px solid #e7e5e4;
+    flex-wrap: wrap;
+}
+.xlt-price-header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+.xlt-price-header-number {
+    font-size: 15px;
+    font-weight: 700;
+    color: #1c1917;
+}
+.xlt-price-header-dest {
+    font-size: 13px;
+    color: #78716c;
+}
+.xlt-price-header-count {
+    font-size: 11px;
+    font-weight: 600;
+    color: #a8a29e;
+    background: #f5f5f4;
+    border-radius: 20px;
+    padding: 3px 10px;
+    white-space: nowrap;
+}
+[class*="st-key-xlt_price_card_"] {
+    background: #fafaf9;
+    border: 1px solid #e7e5e4;
+    border-radius: 8px;
+    padding: 12px 14px;
+}
+[class*="st-key-xlt_price_card_"][class*="_best_"] {
+    background: #F0FDF4;
+    border-color: #bbf7d0;
+}
+[class*="st-key-xlt_price_card_"][class*="_selected_"] {
+    background: #F0FDF4;
+    border-color: #bbf7d0;
+}
+[class*="st-key-xlt_price_card_"][class*="_lost_"] {
+    opacity: 0.55;
+}
+.xlt-price-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 130px;
+    color: #a8a29e;
+    font-size: 12px;
+    font-style: italic;
+    background: #fafaf9;
+    border: 1px dashed #e7e5e4;
+    border-radius: 8px;
+    padding: 12px 14px;
+}
+.xlt-price-best-badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: #15803d;
+    background: #DCFCE7;
+    border-radius: 20px;
+    padding: 3px 9px;
+    margin-bottom: 8px;
+}
+.xlt-price-quote-number {
+    font-size: 12px;
+    color: #a8a29e;
+    margin-bottom: 2px;
+}
+.xlt-price-carrier {
+    font-size: 16px;
+    font-weight: 700;
+    color: #1c1917;
+    margin-bottom: 10px;
+}
+.xlt-price-financials {
+    background: #ffffff;
+    border: 1px solid #e7e5e4;
+    border-radius: 6px;
+    padding: 8px 10px;
+    margin-bottom: 10px;
+}
+.xlt-price-fin-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #78716c;
+    padding: 2px 0;
+}
+.xlt-price-fin-divider {
+    height: 1px;
+    background: #e7e5e4;
+    margin: 4px 0;
+}
+.xlt-price-profit-row {
+    display: flex;
+    justify-content: space-between;
+    font-weight: 700;
+    font-size: 14px;
+    padding-top: 2px;
+}
+.xlt-price-profit-green { color: #15803d; }
+.xlt-price-profit-amber { color: #b45309; }
+.xlt-price-profit-red   { color: #b91c1c; }
+
+[class*="st-key-price_select_btn_"] div[data-testid="stButton"] button {
+    background: #16a34a !important;
+    color: #ffffff !important;
+    border: none !important;
+}
+[class*="st-key-price_select_btn_"] div[data-testid="stButton"] button:hover {
+    background: #15803d !important;
+}
+[class*="st-key-price_lost_btn_"] div[data-testid="stButton"] button {
+    background: #dc2626 !important;
+    color: #ffffff !important;
+    border: none !important;
+}
+[class*="st-key-price_lost_btn_"] div[data-testid="stButton"] button:hover {
+    background: #b91c1c !important;
+}
+
 /* ── PILLS (filter row) ────────────────────────────────────────────────────── */
 div[data-testid="stButtonGroup"] button {
     border-radius: 20px !important;
@@ -712,6 +858,12 @@ def _get_shipments_and_loads():
     and leave a page stuck re-loading before a run ever finishes. Shared by Dashboard and
     Shipments, which both fetch the same two tables with no extra arguments."""
     return get_all_shipments(), get_loads()
+
+@st.cache_data(ttl=20, show_spinner=False)
+def _get_pricing_and_shipments():
+    """Same rationale as _get_shipments_and_loads, for the Pricing page. Cleared
+    explicitly after Select/Lost mutations so the rerun doesn't show a stale status."""
+    return get_pricing(), get_all_shipments()
 
 # ── TOPBAR ──────────────────────────────────────────────────────────────────
 NAV_ITEMS = [
@@ -1356,61 +1508,216 @@ elif pagina == "Loads":
 elif pagina == "Pricing":
     st.markdown('<div class="xlt-page-title">Pricing</div>', unsafe_allow_html=True)
 
-    with st.spinner("Loading..."):
-        quotes    = get_pricing()
-        shipments = get_all_shipments()
+    try:
+        with st.spinner("Loading..."):
+            quotes, shipments = _get_pricing_and_shipments()
+    except Exception as e:
+        st.error(f"⚠️ Failed to load pricing data from Airtable: {e}")
+        st.stop()
 
-    filtro_pr = st.selectbox("Filter", ["All","Pending","Selected","Lost"], label_visibility="collapsed")
+    # ── Summary bar (computed from the full, unfiltered quote list) ──
+    pending_ct  = sum(1 for q in quotes if q.get("status") == "Pending")
+    selected_ct = sum(1 for q in quotes if q.get("status") == "Selected")
+    lost_ct     = sum(1 for q in quotes if q.get("status") == "Lost")
 
-    filtered_pr = [q for q in quotes if filtro_pr == "All" or q["status"] == filtro_pr]
-    st.markdown(f'<div class="xlt-page-sub">{len(filtered_pr)} quotes</div>', unsafe_allow_html=True)
+    def _is_this_month(q):
+        try:
+            d = datetime.strptime(q.get("date") or "", "%Y-%m-%d")
+            now = datetime.now()
+            return d.year == now.year and d.month == now.month
+        except ValueError:
+            return False
 
-    if filtered_pr:
-        rows = ""
-        for q in filtered_pr:
-            rows += f"""<tr>
-                <td><strong>Q-{q.get('quote_number','—')}</strong></td>
-                <td>{q.get('linked_shipments','—')}</td>
-                <td>{q.get('carrier','—')}</td>
-                <td>${fmt_weight(q.get('freight_cost',''))}</td>
-                <td>${fmt_weight(q.get('sales_value',''))}</td>
-                <td>{q.get('freight_pct','—')}%</td>
-                <td>${fmt_weight(q.get('profit',''))}</td>
-                <td>{badge_html(q.get('status',''))}</td>
-            </tr>"""
-        st.markdown(f"""
-        <div class="xlt-table-wrap">
-        <table class="xlt-table">
-        <thead><tr>
-            <th>Quote #</th><th>Shipments</th><th>Carrier</th><th>Freight Cost</th><th>Sales Value</th>
-            <th>Freight %</th><th>Profit</th><th>Status</th>
-        </tr></thead>
-        <tbody>{rows}</tbody>
-        </table></div>""", unsafe_allow_html=True)
-    else:
-        st.info("No quotes found.")
+    month_profits = [q.get("profit", 0) or 0 for q in quotes if _is_this_month(q)]
+    avg_profit = (sum(month_profits) / len(month_profits)) if month_profits else None
+    avg_profit_display = f"${fmt_weight(round(avg_profit))}" if avg_profit is not None else "—"
+
+    c1, c2, c3, c4 = st.columns(4)
+    price_metrics = [
+        (c1, "#1d4ed8", pending_ct,          "Pending Quotes"),
+        (c2, "#15803d", selected_ct,         "Selected"),
+        (c3, "#b91c1c", lost_ct,             "Lost"),
+        (c4, "#4338ca", avg_profit_display,  "Avg Profit This Month"),
+    ]
+    for col, color, val, lbl in price_metrics:
+        with col:
+            st.markdown(f"""
+            <div class="xlt-metric">
+                <div class="xlt-metric-val">{val}</div>
+                <div class="xlt-metric-lbl">{lbl}</div>
+                <div class="xlt-metric-bar" style="background:{color};"></div>
+            </div>""", unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    with st.expander("✏️  Update Quote Status", expanded=False):
-        if quotes:
-            col_q, col_s = st.columns(2)
-            with col_q:
-                quote_sel = st.selectbox("Quote", [f"Q-{q['quote_number']} — {q['carrier']}" for q in quotes])
-            with col_s:
-                nuevo_quote_status = st.selectbox("New Status", ["Pending","Selected","Lost"])
-            if st.button("Update Quote Status", type="primary"):
-                q_num = quote_sel.split(" — ")[0].replace("Q-","")
-                obj = next((q for q in quotes if str(q["quote_number"]) == q_num), None)
-                if obj:
-                    r = update_record_api(PRICING_TABLE, obj["id"], {"Status": nuevo_quote_status})
-                    if r.status_code == 200:
-                        st.success(f"✅ {quote_sel} → {nuevo_quote_status}")
-                        st.rerun()
-                    else:
-                        st.error(f"Error {r.status_code}: {r.text}")
+    # ── Filters row ──
+    col_status, col_wh, col_sort, col_search = st.columns([1.8, 1.6, 2.0, 1.6])
+    with col_status:
+        status_filter = st.pills(
+            "Status", ["All", "Pending", "Selected", "Lost"],
+            default="All", required=True, key="price_filter_status", label_visibility="collapsed",
+        )
+    with col_wh:
+        wh_filter = st.pills(
+            "Warehouse", ["All warehouses", "Texas", "Florida"],
+            default="All warehouses", required=True, key="price_filter_wh", label_visibility="collapsed",
+        )
+    with col_sort:
+        sort_filter = st.pills(
+            "Sort", ["Best profit first", "Newest first"],
+            default="Best profit first", required=True, key="price_filter_sort", label_visibility="collapsed",
+        )
+    with col_search:
+        search_query = st.text_input(
+            "Search", placeholder="Search # or customer...",
+            key="price_filter_search", label_visibility="collapsed",
+        )
+
+    # ── Group quotes (filtered by Status) under their linked shipment ──
+    status_filtered = [q for q in quotes if status_filter == "All" or q.get("status") == status_filter]
+    shipment_by_number = {s["shipment_number"]: s for s in shipments if s.get("shipment_number")}
+
+    groups = {}
+    for q in status_filtered:
+        linked = q.get("linked_shipments") or ""
+        for num in [x.strip() for x in linked.split(",") if x.strip() and x.strip() != "—"]:
+            if num in shipment_by_number:
+                groups.setdefault(num, []).append(q)
+
+    search_q = search_query.strip().lower()
+    group_entries = []
+    for shp_num, qs in groups.items():
+        shipment = shipment_by_number[shp_num]
+        if wh_filter != "All warehouses" and shipment.get("warehouse") != wh_filter:
+            continue
+        if search_q:
+            haystack = [shp_num, str(shipment.get("customer") or "")] + [str(qq.get("carrier") or "") for qq in qs]
+            if not any(search_q in h.lower() for h in haystack):
+                continue
+
+        qs_sorted = sorted(qs, key=lambda x: x.get("profit", 0) or 0, reverse=True)
+        top3 = qs_sorted[:3]
+        group_entries.append({
+            "shipment": shipment,
+            "quotes": top3,
+            "total_count": len(qs),
+            "best_id": top3[0]["id"] if top3 else None,
+            "max_profit": qs_sorted[0].get("profit", 0) or 0 if qs_sorted else 0,
+            "max_date": max((qq.get("date") or "" for qq in qs), default=""),
+        })
+
+    if sort_filter == "Best profit first":
+        group_entries.sort(key=lambda g: g["max_profit"], reverse=True)
+    else:
+        group_entries.sort(key=lambda g: g["max_date"], reverse=True)
+
+    total_quotes_shown = sum(g["total_count"] for g in group_entries)
+    st.markdown(
+        f'<div class="xlt-page-sub">{len(group_entries)} shipment{"s" if len(group_entries) != 1 else ""} '
+        f'· {total_quotes_shown} quote{"s" if total_quotes_shown != 1 else ""}</div>',
+        unsafe_allow_html=True,
+    )
+
+    def _price_wh_badge(wh):
+        if wh == "Texas":
+            return '<span class="xlt-wh-badge xlt-wh-texas">Texas</span>'
+        if wh == "Florida":
+            return '<span class="xlt-wh-badge xlt-wh-florida">Florida</span>'
+        return '<span class="xlt-wh-badge">—</span>'
+
+    def _price_update_status(q, new_status):
+        r = update_record_api(PRICING_TABLE, q["id"], {"Status": new_status})
+        if r.status_code == 200:
+            _get_pricing_and_shipments.clear()
+            st.success(f"✅ Q-{q.get('quote_number','')} → {new_status}")
+            st.rerun()
         else:
-            st.info("No quotes available.")
+            st.error(f"Error {r.status_code}: {r.text}")
+
+    def _render_quote_card(q, is_best, shipment_id):
+        # A quote can be linked to more than one shipment, so the same quote can be
+        # rendered once per shipment group — scope every widget/container key to the
+        # (shipment, quote) pair, not just the quote id, or Streamlit raises a
+        # duplicate-key error the second time that quote is drawn.
+        uid = f"{shipment_id}_{q['id']}"
+        status = q.get("status", "Pending")
+        state_bits = []
+        if is_best:
+            state_bits.append("best")
+        if status == "Selected":
+            state_bits.append("selected")
+        elif status == "Lost":
+            state_bits.append("lost")
+        card_key = f"xlt_price_card_{'_'.join(state_bits) or 'default'}_{uid}"
+
+        profit = q.get("profit", 0) or 0
+        if profit > 500:
+            profit_class = "xlt-price-profit-green"
+        elif profit >= 100:
+            profit_class = "xlt-price-profit-amber"
+        else:
+            profit_class = "xlt-price-profit-red"
+
+        with st.container(key=card_key):
+            best_badge = '<div class="xlt-price-best-badge">💰 Best profit</div>' if is_best else ""
+            st.markdown(f"""
+            {best_badge}
+            <div class="xlt-price-quote-number">Q-{html.escape(str(q.get('quote_number') or '—'))} · {fmt_date(q.get('date',''))}</div>
+            <div class="xlt-price-carrier">{html.escape(str(q.get('carrier') or '—'))}</div>
+            <div class="xlt-price-financials">
+                <div class="xlt-price-fin-row"><span>Freight Cost</span><span>${fmt_weight(q.get('freight_cost',''))}</span></div>
+                <div class="xlt-price-fin-row"><span>Sales Value</span><span>${fmt_weight(q.get('sales_value',''))}</span></div>
+                <div class="xlt-price-fin-row"><span>Freight %</span><span>{q.get('freight_pct','—')}%</span></div>
+                <div class="xlt-price-fin-divider"></div>
+                <div class="xlt-price-profit-row {profit_class}"><span>Profit</span><span>${fmt_weight(profit)}</span></div>
+            </div>
+            """, unsafe_allow_html=True)
+
+            if status == "Lost":
+                with st.container(key=f"price_select_btn_{uid}"):
+                    if st.button("Select", key=f"price_select_{uid}", use_container_width=True):
+                        _price_update_status(q, "Selected")
+            else:
+                b1, b2 = st.columns(2)
+                with b1:
+                    if status == "Selected":
+                        st.button("✓ Selected", key=f"price_selected_disabled_{uid}", use_container_width=True, disabled=True)
+                    else:
+                        with st.container(key=f"price_select_btn_{uid}"):
+                            if st.button("Select", key=f"price_select_{uid}", use_container_width=True):
+                                _price_update_status(q, "Selected")
+                with b2:
+                    lost_label = "Mark Lost" if status == "Selected" else "Lost"
+                    with st.container(key=f"price_lost_btn_{uid}"):
+                        if st.button(lost_label, key=f"price_lost_{uid}", use_container_width=True):
+                            _price_update_status(q, "Lost")
+
+    if not group_entries:
+        st.info("No quotes found.")
+    else:
+        for g in group_entries:
+            s = g["shipment"]
+            with st.container(key=f"xlt_price_group_{s['id']}"):
+                st.markdown(f"""
+                <div class="xlt-price-header">
+                    <div class="xlt-price-header-left">
+                        <span class="xlt-price-header-number">{html.escape(str(s.get('shipment_number') or '—'))}</span>
+                        <span class="xlt-price-header-dest">{html.escape(str(s.get('customer') or '—'))} · {html.escape(str(s.get('city') or ''))}, {html.escape(str(s.get('state') or ''))}</span>
+                        {_price_wh_badge(s.get('warehouse'))}
+                        {badge_html(s.get('warehouse_status',''))}
+                    </div>
+                    <div class="xlt-price-header-count">{g['total_count']} quote{'s' if g['total_count'] != 1 else ''}</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+                cols = st.columns(3)
+                for i in range(3):
+                    with cols[i]:
+                        if i < len(g["quotes"]):
+                            q = g["quotes"][i]
+                            _render_quote_card(q, is_best=(q["id"] == g["best_id"]), shipment_id=s["id"])
+                        else:
+                            st.markdown('<div class="xlt-price-empty">No other quotes</div>', unsafe_allow_html=True)
 
     if st.session_state.get("show_quote_form"):
         st.markdown('<div class="xlt-form-card">', unsafe_allow_html=True)

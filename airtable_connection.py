@@ -249,6 +249,7 @@ def get_pricing(id_to_shpt_number=None):
             "profit": fields.get("Profit $", 0),
             "status": fields.get("Status", ""),
             "linked_shipments": linked_shipments,
+            "date": fields.get("Date", ""),
         })
     return quotes
 
