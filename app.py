@@ -9,6 +9,7 @@ import html
 from collections import Counter
 from datetime import datetime, date
 import folium
+from folium.plugins import MarkerCluster
 from streamlit_folium import st_folium
 from config import AIRTABLE_TOKEN, SHIPMENTS_TABLE, LOADS_TABLE, PRICING_TABLE, UPDATES_LOG_TABLE
 from airtable_connection import get_all_shipments, get_loads, get_pricing, get_updates_log, get_shipment_number_map, get_records
@@ -2032,11 +2033,20 @@ elif pagina == "Live Map":
     def _star_icon(hex_color):
         return folium.DivIcon(html=f'<div style="font-size:26px;line-height:1;color:{hex_color};text-shadow:0 0 3px rgba(0,0,0,0.35);">★</div>')
 
+    def _circle_icon(hex_color):
+        return folium.DivIcon(
+            icon_size=(14, 14), icon_anchor=(7, 7),
+            html=f'<div style="width:14px;height:14px;border-radius:50%;background:{hex_color};'
+                 f'border:1px solid rgba(0,0,0,0.35);box-shadow:0 0 2px rgba(0,0,0,0.4);"></div>',
+        )
+
     m = folium.Map(location=[31.5, -88.0], zoom_start=6, tiles="cartodbpositron")
     folium.Marker(WAREHOUSE_COORDS["Texas"], tooltip="Texas Warehouse",
                   icon=_star_icon(COLOR_TEXAS)).add_to(m)
     folium.Marker(WAREHOUSE_COORDS["Florida"], tooltip="Florida Warehouse",
                   icon=_star_icon(COLOR_FLORIDA)).add_to(m)
+
+    cluster = MarkerCluster(name="Loads").add_to(m)
 
     for mk in data["markers"]:
         wh_coords = WAREHOUSE_COORDS.get(mk["warehouse"])
@@ -2051,11 +2061,11 @@ elif pagina == "Live Map":
             )
         popup_html = "<br>".join(popup_lines)
 
-        folium.CircleMarker(
-            location=mk["coords"], radius=7, color=mk["color"], fill=True,
-            fill_color=mk["color"], fill_opacity=0.85,
+        folium.Marker(
+            location=mk["coords"],
+            icon=_circle_icon(mk["color"]),
             popup=folium.Popup(popup_html, max_width=280),
-        ).add_to(m)
+        ).add_to(cluster)
 
         if wh_coords:
             folium.PolyLine([wh_coords, mk["coords"]], color=mk["color"], weight=1.5, opacity=0.5).add_to(m)
