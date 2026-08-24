@@ -861,6 +861,54 @@ def _get_shipments_and_loads():
     Shipments, which both fetch the same two tables with no extra arguments."""
     return get_all_shipments(), get_loads()
 
+@st.cache_data(ttl=60, show_spinner=False)
+def _get_live_map_ip_shipments_data():
+    """Shipment-level (not Load-level) data for the 'Orders in progress' map: a shipment's
+    warehouse processing stage (Warehouse Status) is independent of whether it has been
+    assigned to a Load yet, so this filters Shipments directly instead of walking Loads'
+    linked_shipment_ids like _get_live_map_data() does."""
+    shipments, loads = _get_shipments_and_loads()
+    load_link_count = {l["load_number"]: len(l.get("linked_shipment_ids", [])) for l in loads}
+
+    filtered = [s for s in shipments if s.get("warehouse_status") == "In Progress"]
+
+    markers = []
+    for s in filtered:
+        coords = get_shipment_coordinates(s)
+        if not coords:
+            continue
+        load_assigned = s.get("load_assigned", "")
+        is_consolidated = bool(load_assigned) and load_link_count.get(load_assigned, 0) >= 2
+        wh = s.get("warehouse")
+        if is_consolidated:
+            color = COLOR_CONSOLIDATED
+        elif wh == "Texas":
+            color = COLOR_TEXAS
+        elif wh == "Florida":
+            color = COLOR_IN_PROGRESS
+        else:
+            color = COLOR_UNKNOWN
+
+        markers.append({
+            "coords": coords,
+            "color": color,
+            "warehouse": wh,
+            "shipment_number": s.get("shipment_number", ""),
+            "customer": s.get("customer", ""),
+            "destination": f"{s.get('city','')}, {s.get('state','')}",
+            "warehouse_status": s.get("warehouse_status", ""),
+            "load_assigned": load_assigned,
+            "carrier": s.get("carrier", ""),
+        })
+
+    return {
+        "markers": markers,
+        "tx_shipments": sum(1 for s in filtered if s.get("warehouse") == "Texas"),
+        "fl_shipments": sum(1 for s in filtered if s.get("warehouse") == "Florida"),
+        "with_load": sum(1 for s in filtered if s.get("load_assigned")),
+        "without_load": sum(1 for s in filtered if not s.get("load_assigned")),
+    }
+
 @st.cache_data(ttl=20, show_spinner=False)
 def _get_pricing_and_shipments():
     """Same rationale as _get_shipments_and_loads, for the Pricing page. Cleared
@@ -2091,15 +2139,15 @@ elif pagina == "Live Map":
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown('<div class="xlt-section-title">Orders in progress</div>', unsafe_allow_html=True)
 
-    with st.spinner("Loading loads..."):
-        data_ip = _get_live_map_data(status="In Progress")
+    with st.spinner("Loading shipments..."):
+        data_ip = _get_live_map_ip_shipments_data()
 
     c1, c2, c3, c4 = st.columns(4)
     live_map_ip_metrics = [
-        (c1, COLOR_TEXAS,        data_ip["tx_loads"],           "Texas Loads"),
-        (c2, COLOR_IN_PROGRESS,  data_ip["fl_loads"],           "Florida Loads"),
-        (c3, COLOR_CONSOLIDATED, data_ip["consolidated_pairs"], "Consolidated Pairs"),
-        (c4, "#64748b",          data_ip["total_loads"],        "Total"),
+        (c1, COLOR_TEXAS,       data_ip["tx_shipments"], "Texas shipments"),
+        (c2, COLOR_IN_PROGRESS, data_ip["fl_shipments"], "Florida shipments"),
+        (c3, "#16a34a",         data_ip["with_load"],    "With load"),
+        (c4, "#64748b",         data_ip["without_load"], "Without load"),
     ]
     for col, color, val, lbl in live_map_ip_metrics:
         with col:
@@ -2117,43 +2165,46 @@ elif pagina == "Live Map":
 
     m_ip = folium.Map(location=[31.5, -88.0], zoom_start=6, tiles="cartodbpositron")
     folium.Marker(WAREHOUSE_COORDS["Texas"], tooltip="Texas Warehouse",
-                  icon=_triangle_icon(COLOR_IN_PROGRESS)).add_to(m_ip)
+                  icon=_triangle_icon(COLOR_TEXAS)).add_to(m_ip)
     folium.Marker(WAREHOUSE_COORDS["Florida"], tooltip="Florida Warehouse",
                   icon=_triangle_icon(COLOR_IN_PROGRESS)).add_to(m_ip)
 
-    cluster_ip = MarkerCluster(name="In Progress Loads").add_to(m_ip)
+    cluster_ip = MarkerCluster(name="In Progress Shipments").add_to(m_ip)
 
     for mk in data_ip["markers"]:
         wh_coords = WAREHOUSE_COORDS.get(mk["warehouse"])
-        marker_color = COLOR_CONSOLIDATED if mk["color"] == COLOR_CONSOLIDATED else COLOR_IN_PROGRESS
         popup_lines = [
-            f"<b>Load:</b> {html.escape(str(mk['load_number']))}",
-            f"<b>Carrier:</b> {html.escape(str(mk['carrier']))}",
-            f"<b>This shipment:</b> {html.escape(str(mk['shipment_number']))} → {html.escape(str(mk['destination']))}",
+            f"<b>Shipment:</b> {html.escape(str(mk['shipment_number']))}",
+            f"<b>Customer:</b> {html.escape(str(mk['customer']))}",
+            f"<b>Destination:</b> {html.escape(str(mk['destination']))}",
+            f"<b>Warehouse status:</b> {html.escape(str(mk['warehouse_status']))}",
         ]
-        for other in mk.get("others", []):
-            popup_lines.append(
-                f"<b>Also in this load:</b> {html.escape(str(other['shipment_number']))} → {html.escape(str(other['destination']))}"
-            )
+        if mk["load_assigned"]:
+            popup_lines.append(f"<b>Load #:</b> {html.escape(str(mk['load_assigned']))}")
+            popup_lines.append(f"<b>Carrier:</b> {html.escape(str(mk['carrier']))}")
+        else:
+            popup_lines.append("No load assigned yet")
         popup_html = "<br>".join(popup_lines)
 
         folium.Marker(
             location=mk["coords"],
-            icon=_circle_icon(marker_color),
+            icon=_circle_icon(mk["color"]),
             popup=folium.Popup(popup_html, max_width=280),
         ).add_to(cluster_ip)
 
         if wh_coords:
-            folium.PolyLine([wh_coords, mk["coords"]], color=marker_color, weight=1.5, opacity=0.5).add_to(m_ip)
+            folium.PolyLine([wh_coords, mk["coords"]], color=mk["color"], weight=1.5, opacity=0.5).add_to(m_ip)
 
     st.markdown(f"""
     <div style="position:fixed; bottom:30px; right:40px; z-index:9999; background:#ffffffee;
                 border:1px solid #e2e8f0; border-radius:10px; padding:12px 16px;
                 box-shadow:0 4px 14px rgba(0,0,0,0.08); font-size:12px; color:#0f172a; max-width:220px;">
       <div style="font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;font-size:11px;margin-bottom:8px;">Legend</div>
-      <div style="margin-bottom:5px;"><span style="color:{COLOR_IN_PROGRESS};">▲</span> Amber triangle — Warehouse</div>
-      <div style="margin-bottom:5px;"><span style="color:{COLOR_IN_PROGRESS};">●</span> Amber circle — In Progress load</div>
-      <div><span style="color:{COLOR_CONSOLIDATED};">●</span> Orange circle — Consolidated load</div>
+      <div style="margin-bottom:5px;"><span style="color:{COLOR_TEXAS};">▲</span> Blue triangle — Texas warehouse</div>
+      <div style="margin-bottom:5px;"><span style="color:{COLOR_IN_PROGRESS};">▲</span> Amber triangle — Florida warehouse</div>
+      <div style="margin-bottom:5px;"><span style="color:{COLOR_TEXAS};">●</span> Blue circle — Texas shipment</div>
+      <div style="margin-bottom:5px;"><span style="color:{COLOR_IN_PROGRESS};">●</span> Amber circle — Florida shipment</div>
+      <div><span style="color:{COLOR_CONSOLIDATED};">●</span> Orange circle — Consolidated shipment</div>
     </div>
     """, unsafe_allow_html=True)
 
