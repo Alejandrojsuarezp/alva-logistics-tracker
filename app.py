@@ -783,20 +783,21 @@ COLOR_TEXAS = "#185FA5"
 COLOR_FLORIDA = "#FFC107"
 COLOR_CONSOLIDATED = "#FF8C00"
 COLOR_UNKNOWN = "#9CA3AF"
+COLOR_IN_PROGRESS = "#b45309"
 
 @st.cache_data(ttl=60, show_spinner=False)
-def _get_live_map_data():
-    """Fetches Loads + Shipments and geocodes each Ready load's shipment destinations.
+def _get_live_map_data(status="Ready"):
+    """Fetches Loads + Shipments and geocodes each matching load's shipment destinations.
     Cached for 60s so panning/zooming the map (a Streamlit rerun) doesn't re-hit Airtable
     or Nominatim on every interaction."""
     loads = get_loads(debug=True)
     shipments = get_all_shipments()
     shipment_by_id = {s["id"]: s for s in shipments}
 
-    ready_loads = [l for l in loads if l.get("load_status") == "Ready"]
+    filtered_loads = [l for l in loads if l.get("load_status") == status]
 
     markers = []
-    for l in ready_loads:
+    for l in filtered_loads:
         linked_ids = l.get("linked_shipment_ids", [])
         is_consolidated = len(linked_ids) >= 2
         wh = l.get("warehouse")
@@ -842,10 +843,10 @@ def _get_live_map_data():
 
     return {
         "markers": markers,
-        "tx_loads": sum(1 for l in ready_loads if l.get("warehouse") == "Texas"),
-        "fl_loads": sum(1 for l in ready_loads if l.get("warehouse") == "Florida"),
-        "consolidated_pairs": sum(1 for l in ready_loads if len(l.get("linked_shipment_ids", [])) >= 2),
-        "total_loads": len(ready_loads),
+        "tx_loads": sum(1 for l in filtered_loads if l.get("warehouse") == "Texas"),
+        "fl_loads": sum(1 for l in filtered_loads if l.get("warehouse") == "Florida"),
+        "consolidated_pairs": sum(1 for l in filtered_loads if len(l.get("linked_shipment_ids", [])) >= 2),
+        "total_loads": len(filtered_loads),
         "status_counts": dict(Counter(l.get("load_status", "") for l in loads)),
         "warehouse_counts": dict(Counter(l.get("warehouse", "") for l in loads)),
         "raw_first_fields": raw_loads[0].get("fields", {}) if raw_loads else {},
@@ -2003,6 +2004,8 @@ elif pagina == "Live Map":
     st.markdown('<div class="xlt-page-title">Live Map</div>', unsafe_allow_html=True)
     st.markdown('<div class="xlt-page-sub">Loads ready for pickup, plotted by destination (data refreshes every 60s)</div>', unsafe_allow_html=True)
 
+    st.markdown('<div class="xlt-section-title">Orders that are ready</div>', unsafe_allow_html=True)
+
     with st.spinner("Loading loads..."):
         data = _get_live_map_data()
 
@@ -2083,7 +2086,78 @@ elif pagina == "Live Map":
     </div>
     """, unsafe_allow_html=True)
 
-    st_folium(m, width=None, height=560)
+    st_folium(m, width=None, height=560, key="live_map_ready")
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown('<div class="xlt-section-title">Orders in progress</div>', unsafe_allow_html=True)
+
+    with st.spinner("Loading loads..."):
+        data_ip = _get_live_map_data(status="In Progress")
+
+    c1, c2, c3, c4 = st.columns(4)
+    live_map_ip_metrics = [
+        (c1, COLOR_TEXAS,        data_ip["tx_loads"],           "Texas Loads"),
+        (c2, COLOR_IN_PROGRESS,  data_ip["fl_loads"],           "Florida Loads"),
+        (c3, COLOR_CONSOLIDATED, data_ip["consolidated_pairs"], "Consolidated Pairs"),
+        (c4, "#64748b",          data_ip["total_loads"],        "Total"),
+    ]
+    for col, color, val, lbl in live_map_ip_metrics:
+        with col:
+            st.markdown(f"""
+            <div class="xlt-metric">
+                <div class="xlt-metric-val">{val}</div>
+                <div class="xlt-metric-lbl">{lbl}</div>
+                <div class="xlt-metric-bar" style="background:{color};"></div>
+            </div>""", unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    def _triangle_icon(hex_color):
+        return folium.DivIcon(html=f'<div style="font-size:22px;line-height:1;color:{hex_color};text-shadow:0 0 3px rgba(0,0,0,0.35);">▲</div>')
+
+    m_ip = folium.Map(location=[31.5, -88.0], zoom_start=6, tiles="cartodbpositron")
+    folium.Marker(WAREHOUSE_COORDS["Texas"], tooltip="Texas Warehouse",
+                  icon=_triangle_icon(COLOR_IN_PROGRESS)).add_to(m_ip)
+    folium.Marker(WAREHOUSE_COORDS["Florida"], tooltip="Florida Warehouse",
+                  icon=_triangle_icon(COLOR_IN_PROGRESS)).add_to(m_ip)
+
+    cluster_ip = MarkerCluster(name="In Progress Loads").add_to(m_ip)
+
+    for mk in data_ip["markers"]:
+        wh_coords = WAREHOUSE_COORDS.get(mk["warehouse"])
+        marker_color = COLOR_CONSOLIDATED if mk["color"] == COLOR_CONSOLIDATED else COLOR_IN_PROGRESS
+        popup_lines = [
+            f"<b>Load:</b> {html.escape(str(mk['load_number']))}",
+            f"<b>Carrier:</b> {html.escape(str(mk['carrier']))}",
+            f"<b>This shipment:</b> {html.escape(str(mk['shipment_number']))} → {html.escape(str(mk['destination']))}",
+        ]
+        for other in mk.get("others", []):
+            popup_lines.append(
+                f"<b>Also in this load:</b> {html.escape(str(other['shipment_number']))} → {html.escape(str(other['destination']))}"
+            )
+        popup_html = "<br>".join(popup_lines)
+
+        folium.Marker(
+            location=mk["coords"],
+            icon=_circle_icon(marker_color),
+            popup=folium.Popup(popup_html, max_width=280),
+        ).add_to(cluster_ip)
+
+        if wh_coords:
+            folium.PolyLine([wh_coords, mk["coords"]], color=marker_color, weight=1.5, opacity=0.5).add_to(m_ip)
+
+    st.markdown(f"""
+    <div style="position:fixed; bottom:30px; right:40px; z-index:9999; background:#ffffffee;
+                border:1px solid #e2e8f0; border-radius:10px; padding:12px 16px;
+                box-shadow:0 4px 14px rgba(0,0,0,0.08); font-size:12px; color:#0f172a; max-width:220px;">
+      <div style="font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;font-size:11px;margin-bottom:8px;">Legend</div>
+      <div style="margin-bottom:5px;"><span style="color:{COLOR_IN_PROGRESS};">▲</span> Amber triangle — Warehouse</div>
+      <div style="margin-bottom:5px;"><span style="color:{COLOR_IN_PROGRESS};">●</span> Amber circle — In Progress load</div>
+      <div><span style="color:{COLOR_CONSOLIDATED};">●</span> Orange circle — Consolidated load</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st_folium(m_ip, width=None, height=560, key="live_map_in_progress")
 
 # ── TRUCK BUILDER ─────────────────────────────────────────────────────────────
 elif pagina == "Truck Builder":
