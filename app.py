@@ -683,6 +683,116 @@ div[data-testid="stButtonGroup"] button[aria-checked="true"] {
     padding: 20px 22px;
 }
 
+/* ── LIVE MAP: clickable stat cards, legend row, tabs, detail cards ───────── */
+.xlt-stat-card {
+    position: relative;
+    background: #ffffff;
+    border: 1px solid #e7e5e4;
+    border-top: 3px solid #e7e5e4;
+    border-radius: 10px;
+    padding: 16px 18px 14px 18px;
+    transition: box-shadow .15s, border-color .15s;
+}
+.xlt-stat-card:hover {
+    box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+}
+.xlt-stat-card-active {
+    background: #fafaf9;
+    box-shadow: inset 0 0 0 1px #1c1917;
+}
+.xlt-stat-val {
+    font-size: 22px;
+    font-weight: 800;
+    color: #1c1917;
+    line-height: 1;
+}
+.xlt-stat-lbl {
+    font-size: 13px;
+    font-weight: 600;
+    color: #57534e;
+    margin-top: 6px;
+}
+.xlt-stat-sub {
+    font-size: 11px;
+    color: #a8a29e;
+    margin-top: 2px;
+}
+div[class*="st-key-statcard_"] { position: relative; }
+div[class*="st-key-statcard_"] div[data-testid="stButton"] {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+}
+div[class*="st-key-statcard_"] div[data-testid="stButton"] button {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    opacity: 0;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    padding: 0;
+    box-shadow: none;
+}
+
+.xlt-legend-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 20px;
+    align-items: center;
+    background: #fafaf9;
+    border: 1px solid #e7e5e4;
+    border-radius: 8px;
+    padding: 10px 16px;
+    margin-bottom: 12px;
+    font-size: 12px;
+    color: #57534e;
+}
+.xlt-legend-row .sw {
+    font-weight: 700;
+    margin-right: 4px;
+}
+
+div[class*="st-key-m1tab_"] div[data-testid="stButton"] button,
+div[class*="st-key-m2tab_"] div[data-testid="stButton"] button {
+    border-radius: 20px;
+}
+
+.xlt-panel-card {
+    background: #ffffff;
+    border: 1px solid #e7e5e4;
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+}
+.xlt-panel-card-noload {
+    border-left: 3px solid #dc2626;
+}
+.xlt-panel-card-row {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 4px 16px;
+    font-size: 13px;
+    color: #1c1917;
+    padding: 3px 0;
+}
+.xlt-panel-card-row span:first-child {
+    color: #a8a29e;
+    min-width: 120px;
+}
+.xlt-panel-card-row span:last-child {
+    font-weight: 600;
+    text-align: right;
+}
+.xlt-panel-empty {
+    color: #a8a29e;
+    font-style: italic;
+    font-size: 13px;
+    padding: 24px 0;
+    text-align: center;
+}
+
 div[data-testid="stSelectbox"] label,
 div[data-testid="stTextInput"] label,
 div[data-testid="stNumberInput"] label,
@@ -713,9 +823,7 @@ div[data-testid="stButton"] button[kind="primary"]:hover {
 </style>
 """, unsafe_allow_html=True)
 
-# Auto-refresh every 30 seconds
 from streamlit_autorefresh import st_autorefresh
-st_autorefresh(interval=30000)
 
 # ── HEADERS FOR AIRTABLE ────────────────────────────────────────────────────
 HEADERS = {
@@ -797,6 +905,7 @@ def _get_live_map_data(status="Ready"):
     filtered_loads = [l for l in loads if l.get("load_status") == status]
 
     markers = []
+    loads_detail = []
     for l in filtered_loads:
         linked_ids = l.get("linked_shipment_ids", [])
         is_consolidated = len(linked_ids) >= 2
@@ -839,10 +948,31 @@ def _get_live_map_data(status="Ready"):
                 "others": others,
             })
 
+        # Detail-panel entry: unlike load_shipments/markers above, this lists every
+        # linked shipment regardless of whether its address geocoded, so a load isn't
+        # silently missing shipments in the panel just because a marker couldn't be placed.
+        detail_shipments = [
+            {
+                "shipment_number": shipment_by_id[sid].get("shipment_number", ""),
+                "destination": f"{shipment_by_id[sid].get('city','')}, {shipment_by_id[sid].get('state','')}",
+            }
+            for sid in linked_ids if sid in shipment_by_id
+        ]
+        loads_detail.append({
+            "load_number": l.get("load_number", ""),
+            "carrier": l.get("carrier", ""),
+            "warehouse": wh,
+            "is_consolidated": is_consolidated,
+            "shipments": detail_shipments,
+            "weight": l.get("total_weight", ""),
+            "eta_pickup": l.get("eta_pickup", ""),
+        })
+
     raw_loads = get_records(LOADS_TABLE)
 
     return {
         "markers": markers,
+        "loads_detail": loads_detail,
         "tx_loads": sum(1 for l in filtered_loads if l.get("warehouse") == "Texas"),
         "fl_loads": sum(1 for l in filtered_loads if l.get("warehouse") == "Florida"),
         "consolidated_pairs": sum(1 for l in filtered_loads if len(l.get("linked_shipment_ids", [])) >= 2),
@@ -873,10 +1003,8 @@ def _get_live_map_ip_shipments_data():
     filtered = [s for s in shipments if s.get("warehouse_status") == "In Progress"]
 
     markers = []
+    shipments_detail = []
     for s in filtered:
-        coords = get_shipment_coordinates(s)
-        if not coords:
-            continue
         load_assigned = s.get("load_assigned", "")
         is_consolidated = bool(load_assigned) and load_link_count.get(load_assigned, 0) >= 2
         wh = s.get("warehouse")
@@ -888,6 +1016,23 @@ def _get_live_map_ip_shipments_data():
             color = COLOR_IN_PROGRESS
         else:
             color = COLOR_UNKNOWN
+
+        # Detail-panel entry: built for every filtered shipment regardless of whether
+        # its address geocoded, unlike markers below (which need placeable coords).
+        shipments_detail.append({
+            "shipment_number": s.get("shipment_number", ""),
+            "carrier": s.get("carrier", ""),
+            "load_assigned": load_assigned,
+            "warehouse": wh,
+            "destination": f"{s.get('city','')}, {s.get('state','')}",
+            "weight": s.get("weight", ""),
+            "eta_pickup": s.get("eta_pickup", ""),
+            "is_consolidated": is_consolidated,
+        })
+
+        coords = get_shipment_coordinates(s)
+        if not coords:
+            continue
 
         markers.append({
             "coords": coords,
@@ -903,6 +1048,7 @@ def _get_live_map_ip_shipments_data():
 
     return {
         "markers": markers,
+        "shipments_detail": shipments_detail,
         "tx_shipments": sum(1 for s in filtered if s.get("warehouse") == "Texas"),
         "fl_shipments": sum(1 for s in filtered if s.get("warehouse") == "Florida"),
         "with_load": sum(1 for s in filtered if s.get("load_assigned")),
@@ -967,6 +1113,11 @@ with st.container(key="xlt_topbar"):
                 st.button("＋ New", key="topbar_new_disabled", use_container_width=True, disabled=True)
 
 pagina = st.session_state["pagina"]
+
+# Auto-refresh every 30 seconds — except Live Map, which uses a manual refresh
+# button instead so an open popup/scroll position doesn't get yanked mid-read.
+if pagina != "Live Map":
+    st_autorefresh(interval=30000)
 
 # ── DASHBOARD ───────────────────────────────────────────────────────────────
 if pagina == "Dashboard":
@@ -2049,10 +2200,67 @@ elif pagina == "Consolidations":
 
 # ── LIVE MAP ──────────────────────────────────────────────────────────────────
 elif pagina == "Live Map":
-    st.markdown('<div class="xlt-page-title">Live Map</div>', unsafe_allow_html=True)
-    st.markdown('<div class="xlt-page-sub">Loads ready for pickup, plotted by destination (data refreshes every 60s)</div>', unsafe_allow_html=True)
+    st.session_state.setdefault("live_map_last_refresh", datetime.now())
+    st.session_state.setdefault("live_map1_tab", "All")
+    st.session_state.setdefault("live_map2_tab", "All")
 
-    st.markdown('<div class="xlt-section-title">Orders that are ready</div>', unsafe_allow_html=True)
+    def _wh_badge(wh):
+        if wh == "Texas":
+            return '<span class="xlt-wh-badge xlt-wh-texas">Texas</span>'
+        if wh == "Florida":
+            return '<span class="xlt-wh-badge xlt-wh-florida">Florida</span>'
+        return '<span class="xlt-wh-badge">—</span>'
+
+    def _stat_card(col, key, value, label, subtitle, color, is_active, on_click_value, session_key):
+        with col:
+            with st.container(key=f"statcard_{key}"):
+                active_cls = " xlt-stat-card-active" if is_active else ""
+                sub_html = f'<div class="xlt-stat-sub">{html.escape(str(subtitle))}</div>' if subtitle else ""
+                st.markdown(f"""
+                <div class="xlt-stat-card{active_cls}" style="border-top-color:{color};">
+                    <div class="xlt-stat-val">{value}</div>
+                    <div class="xlt-stat-lbl">{html.escape(str(label))}</div>
+                    {sub_html}
+                </div>""", unsafe_allow_html=True)
+                if st.button(" ", key=f"statbtn_{key}", use_container_width=True):
+                    st.session_state[session_key] = on_click_value
+                    st.rerun()
+
+    def _tab_row(tabs, session_key, key_prefix):
+        cols = st.columns(len(tabs))
+        for i, t in enumerate(tabs):
+            with cols[i]:
+                is_active = st.session_state[session_key] == t
+                if st.button(t, key=f"{key_prefix}_{t}", use_container_width=True,
+                             type="primary" if is_active else "secondary"):
+                    st.session_state[session_key] = t
+                    st.rerun()
+
+    title_col, refresh_col = st.columns([5, 2])
+    with title_col:
+        st.markdown('<div class="xlt-page-title">Live Map</div>', unsafe_allow_html=True)
+        st.markdown('<div class="xlt-page-sub">Loads ready for pickup and shipments moving through the warehouse, plotted by destination</div>', unsafe_allow_html=True)
+    with refresh_col:
+        mins_ago = int((datetime.now() - st.session_state["live_map_last_refresh"]).total_seconds() // 60)
+        ago_txt = "just now" if mins_ago < 1 else f"{mins_ago} min ago"
+        rc1, rc2 = st.columns([3, 1])
+        with rc1:
+            st.markdown(f'<div style="text-align:right;padding-top:11px;color:#a8a29e;font-size:13px;">Last updated: {ago_txt}</div>', unsafe_allow_html=True)
+        with rc2:
+            if st.button("🔄 Refresh", key="live_map_refresh_btn", use_container_width=True):
+                _get_live_map_data.clear()
+                _get_live_map_ip_shipments_data.clear()
+                st.session_state["live_map_last_refresh"] = datetime.now()
+                st.rerun()
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown(f"""
+    <div style="display:flex;align-items:center;gap:10px;">
+        <div class="xlt-section-title" style="margin-bottom:0;">Ready for Pickup</div>
+        <span class="badge badge-ready">Live</span>
+    </div>
+    <div class="xlt-page-sub" style="margin-top:2px;">Loads confirmed and awaiting carrier</div>
+    """, unsafe_allow_html=True)
 
     with st.spinner("Loading loads..."):
         data = _get_live_map_data()
@@ -2064,22 +2272,26 @@ elif pagina == "Live Map":
         st.json(data["raw_first_fields"])
 
     c1, c2, c3, c4 = st.columns(4)
-    live_map_metrics = [
-        (c1, COLOR_TEXAS,       data["tx_loads"],           "Texas Loads"),
-        (c2, "#b45309",         data["fl_loads"],           "Florida Loads"),
-        (c3, COLOR_CONSOLIDATED, data["consolidated_pairs"], "Consolidated Pairs"),
-        (c4, "#64748b",         data["total_loads"],        "Total"),
-    ]
-    for col, color, val, lbl in live_map_metrics:
-        with col:
-            st.markdown(f"""
-            <div class="xlt-metric">
-                <div class="xlt-metric-val">{val}</div>
-                <div class="xlt-metric-lbl">{lbl}</div>
-                <div class="xlt-metric-bar" style="background:{color};"></div>
-            </div>""", unsafe_allow_html=True)
+    _stat_card(c1, "m1_tx", data["tx_loads"], "Texas loads", "", COLOR_TEXAS,
+               st.session_state["live_map1_tab"] == "Texas", "Texas", "live_map1_tab")
+    _stat_card(c2, "m1_fl", data["fl_loads"], "Florida loads", "", "#15803d",
+               st.session_state["live_map1_tab"] == "Florida", "Florida", "live_map1_tab")
+    _stat_card(c3, "m1_consol", data["consolidated_pairs"], "Consolidated pairs", "2+ shipments per load", COLOR_CONSOLIDATED,
+               st.session_state["live_map1_tab"] == "Consolidated", "Consolidated", "live_map1_tab")
+    _stat_card(c4, "m1_total", data["total_loads"], "Total loads", "across both warehouses", "#64748b",
+               st.session_state["live_map1_tab"] == "All", "All", "live_map1_tab")
 
     st.markdown("<br>", unsafe_allow_html=True)
+
+    st.markdown(f"""
+    <div class="xlt-legend-row">
+        <div><span class="sw" style="color:{COLOR_TEXAS};">★</span>Texas warehouse</div>
+        <div><span class="sw" style="color:{COLOR_FLORIDA};">★</span>Florida warehouse</div>
+        <div><span class="sw" style="color:{COLOR_TEXAS};">●</span>Texas load</div>
+        <div><span class="sw" style="color:{COLOR_FLORIDA};">●</span>Florida load</div>
+        <div><span class="sw" style="color:{COLOR_CONSOLIDATED};">●</span>Consolidated load</div>
+    </div>
+    """, unsafe_allow_html=True)
 
     def _star_icon(hex_color):
         return folium.DivIcon(html=f'<div style="font-size:26px;line-height:1;color:{hex_color};text-shadow:0 0 3px rgba(0,0,0,0.35);">★</div>')
@@ -2121,44 +2333,78 @@ elif pagina == "Live Map":
         if wh_coords:
             folium.PolyLine([wh_coords, mk["coords"]], color=mk["color"], weight=1.5, opacity=0.5).add_to(m)
 
-    st.markdown(f"""
-    <div style="position:fixed; bottom:30px; left:40px; z-index:9999; background:#ffffffee;
-                border:1px solid #e2e8f0; border-radius:10px; padding:12px 16px;
-                box-shadow:0 4px 14px rgba(0,0,0,0.08); font-size:12px; color:#0f172a; max-width:220px;">
-      <div style="font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;font-size:11px;margin-bottom:8px;">Legend</div>
-      <div style="margin-bottom:5px;"><span style="color:{COLOR_TEXAS};">★</span> Blue star — Texas warehouse</div>
-      <div style="margin-bottom:5px;"><span style="color:{COLOR_FLORIDA};">★</span> Yellow star — Florida warehouse</div>
-      <div style="margin-bottom:5px;"><span style="color:{COLOR_TEXAS};">●</span> Blue circle — Texas load</div>
-      <div style="margin-bottom:5px;"><span style="color:{COLOR_FLORIDA};">●</span> Yellow circle — Florida load</div>
-      <div><span style="color:{COLOR_CONSOLIDATED};">●</span> Orange circle — Consolidated load</div>
-    </div>
-    """, unsafe_allow_html=True)
-
     st_folium(m, width=None, height=560, key="live_map_ready")
 
+    # ── MAP 1 DETAIL PANEL ───────────────────────────────────────────────────
     st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown('<div class="xlt-section-title">Orders in progress</div>', unsafe_allow_html=True)
+    _tab_row(["Texas", "Florida", "Consolidated", "All"], "live_map1_tab", "m1tab")
+    st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
+
+    active_tab1 = st.session_state["live_map1_tab"]
+    loads_detail = data["loads_detail"]
+    if active_tab1 == "Texas":
+        panel_loads = [l for l in loads_detail if l["warehouse"] == "Texas"]
+    elif active_tab1 == "Florida":
+        panel_loads = [l for l in loads_detail if l["warehouse"] == "Florida"]
+    elif active_tab1 == "Consolidated":
+        panel_loads = [l for l in loads_detail if l["is_consolidated"]]
+    else:
+        panel_loads = loads_detail
+
+    if not panel_loads:
+        st.markdown('<div class="xlt-panel-empty">No loads match this filter.</div>', unsafe_allow_html=True)
+    else:
+        for l in panel_loads:
+            shp_list = ", ".join(s["shipment_number"] for s in l["shipments"] if s["shipment_number"]) or "—"
+            dests = sorted({s["destination"] for s in l["shipments"] if s["destination"].strip(", ")})
+            dest_list = ", ".join(dests) or "—"
+            consol_badge = ' <span class="badge badge-pickup">Consolidated</span>' if l["is_consolidated"] else ""
+            st.markdown(f"""
+            <div class="xlt-panel-card">
+                <div class="xlt-panel-card-row"><span>Load #</span><span>{html.escape(str(l['load_number'] or '—'))}{consol_badge}</span></div>
+                <div class="xlt-panel-card-row"><span>Carrier</span><span>{html.escape(str(l['carrier'] or '—'))}</span></div>
+                <div class="xlt-panel-card-row"><span>Warehouse</span><span>{_wh_badge(l['warehouse'])}</span></div>
+                <div class="xlt-panel-card-row"><span>Shipment(s)</span><span>{html.escape(shp_list)}</span></div>
+                <div class="xlt-panel-card-row"><span>Destination</span><span>{html.escape(dest_list)}</span></div>
+                <div class="xlt-panel-card-row"><span>Weight</span><span>{fmt_weight(l['weight'])} lbs</span></div>
+                <div class="xlt-panel-card-row"><span>ETA Pickup</span><span>{html.escape(str(l['eta_pickup'] or '—'))}</span></div>
+            </div>
+            """, unsafe_allow_html=True)
+
+    # ── MAP 2: IN-TRANSIT BOARD ───────────────────────────────────────────────
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    st.markdown(f"""
+    <div style="display:flex;align-items:center;gap:10px;">
+        <div class="xlt-section-title" style="margin-bottom:0;">In-Transit Board</div>
+        <span class="badge badge-progress">Live</span>
+    </div>
+    <div class="xlt-page-sub" style="margin-top:2px;">Shipments being prepared or already moving</div>
+    """, unsafe_allow_html=True)
 
     with st.spinner("Loading shipments..."):
         data_ip = _get_live_map_ip_shipments_data()
 
     c1, c2, c3, c4 = st.columns(4)
-    live_map_ip_metrics = [
-        (c1, COLOR_TEXAS,       data_ip["tx_shipments"], "Texas shipments"),
-        (c2, COLOR_IN_PROGRESS, data_ip["fl_shipments"], "Florida shipments"),
-        (c3, "#16a34a",         data_ip["with_load"],    "With load"),
-        (c4, "#64748b",         data_ip["without_load"], "Without load"),
-    ]
-    for col, color, val, lbl in live_map_ip_metrics:
-        with col:
-            st.markdown(f"""
-            <div class="xlt-metric">
-                <div class="xlt-metric-val">{val}</div>
-                <div class="xlt-metric-lbl">{lbl}</div>
-                <div class="xlt-metric-bar" style="background:{color};"></div>
-            </div>""", unsafe_allow_html=True)
+    _stat_card(c1, "m2_tx", data_ip["tx_shipments"], "Texas shipments", "", COLOR_TEXAS,
+               st.session_state["live_map2_tab"] == "Texas", "Texas", "live_map2_tab")
+    _stat_card(c2, "m2_fl", data_ip["fl_shipments"], "Florida shipments", "", COLOR_IN_PROGRESS,
+               st.session_state["live_map2_tab"] == "Florida", "Florida", "live_map2_tab")
+    _stat_card(c3, "m2_with", data_ip["with_load"], "With load assigned", "carrier confirmed", "#16a34a",
+               st.session_state["live_map2_tab"] == "With load", "With load", "live_map2_tab")
+    _stat_card(c4, "m2_without", data_ip["without_load"], "Without load", "needs carrier assignment", "#dc2626",
+               st.session_state["live_map2_tab"] == "No load", "No load", "live_map2_tab")
 
     st.markdown("<br>", unsafe_allow_html=True)
+
+    st.markdown(f"""
+    <div class="xlt-legend-row">
+        <div><span class="sw" style="color:{COLOR_TEXAS};">▲</span>Texas warehouse</div>
+        <div><span class="sw" style="color:{COLOR_IN_PROGRESS};">▲</span>Florida warehouse</div>
+        <div><span class="sw" style="color:{COLOR_TEXAS};">●</span>Texas shipment</div>
+        <div><span class="sw" style="color:{COLOR_IN_PROGRESS};">●</span>Florida shipment</div>
+        <div><span class="sw" style="color:{COLOR_CONSOLIDATED};">●</span>Consolidated shipment</div>
+    </div>
+    """, unsafe_allow_html=True)
 
     def _triangle_icon(hex_color):
         return folium.DivIcon(html=f'<div style="font-size:22px;line-height:1;color:{hex_color};text-shadow:0 0 3px rgba(0,0,0,0.35);">▲</div>')
@@ -2195,20 +2441,45 @@ elif pagina == "Live Map":
         if wh_coords:
             folium.PolyLine([wh_coords, mk["coords"]], color=mk["color"], weight=1.5, opacity=0.5).add_to(m_ip)
 
-    st.markdown(f"""
-    <div style="position:fixed; bottom:30px; right:40px; z-index:9999; background:#ffffffee;
-                border:1px solid #e2e8f0; border-radius:10px; padding:12px 16px;
-                box-shadow:0 4px 14px rgba(0,0,0,0.08); font-size:12px; color:#0f172a; max-width:220px;">
-      <div style="font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;font-size:11px;margin-bottom:8px;">Legend</div>
-      <div style="margin-bottom:5px;"><span style="color:{COLOR_TEXAS};">▲</span> Blue triangle — Texas warehouse</div>
-      <div style="margin-bottom:5px;"><span style="color:{COLOR_IN_PROGRESS};">▲</span> Amber triangle — Florida warehouse</div>
-      <div style="margin-bottom:5px;"><span style="color:{COLOR_TEXAS};">●</span> Blue circle — Texas shipment</div>
-      <div style="margin-bottom:5px;"><span style="color:{COLOR_IN_PROGRESS};">●</span> Amber circle — Florida shipment</div>
-      <div><span style="color:{COLOR_CONSOLIDATED};">●</span> Orange circle — Consolidated shipment</div>
-    </div>
-    """, unsafe_allow_html=True)
-
     st_folium(m_ip, width=None, height=560, key="live_map_in_progress")
+
+    # ── MAP 2 DETAIL PANEL ───────────────────────────────────────────────────
+    st.markdown("<br>", unsafe_allow_html=True)
+    _tab_row(["Texas", "Florida", "With load", "No load"], "live_map2_tab", "m2tab")
+    st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
+
+    active_tab2 = st.session_state["live_map2_tab"]
+    ship_detail = data_ip["shipments_detail"]
+    if active_tab2 == "Texas":
+        panel_ships = [s for s in ship_detail if s["warehouse"] == "Texas"]
+    elif active_tab2 == "Florida":
+        panel_ships = [s for s in ship_detail if s["warehouse"] == "Florida"]
+    elif active_tab2 == "With load":
+        panel_ships = [s for s in ship_detail if s["load_assigned"]]
+    elif active_tab2 == "No load":
+        panel_ships = [s for s in ship_detail if not s["load_assigned"]]
+    else:
+        panel_ships = ship_detail
+
+    if not panel_ships:
+        st.markdown('<div class="xlt-panel-empty">No shipments match this filter.</div>', unsafe_allow_html=True)
+    else:
+        for s in panel_ships:
+            if s["load_assigned"]:
+                carrier_line = f"{html.escape(str(s['carrier'] or '—'))} · Load {html.escape(str(s['load_assigned']))}"
+            else:
+                carrier_line = '<span style="color:#dc2626;font-weight:700;">No load assigned</span>'
+            card_cls = "xlt-panel-card xlt-panel-card-noload" if not s["load_assigned"] else "xlt-panel-card"
+            st.markdown(f"""
+            <div class="{card_cls}">
+                <div class="xlt-panel-card-row"><span>Shipment #</span><span>{html.escape(str(s['shipment_number'] or '—'))}</span></div>
+                <div class="xlt-panel-card-row"><span>Carrier / Load</span><span>{carrier_line}</span></div>
+                <div class="xlt-panel-card-row"><span>Warehouse</span><span>{_wh_badge(s['warehouse'])}</span></div>
+                <div class="xlt-panel-card-row"><span>Destination</span><span>{html.escape(str(s['destination']))}</span></div>
+                <div class="xlt-panel-card-row"><span>Weight</span><span>{fmt_weight(s['weight'])} lbs</span></div>
+                <div class="xlt-panel-card-row"><span>ETA Pickup</span><span>{fmt_date(s['eta_pickup'] or '—')}</span></div>
+            </div>
+            """, unsafe_allow_html=True)
 
 # ── TRUCK BUILDER ─────────────────────────────────────────────────────────────
 elif pagina == "Truck Builder":
