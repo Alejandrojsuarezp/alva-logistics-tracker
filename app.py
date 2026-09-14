@@ -763,27 +763,50 @@ div[class*="st-key-m2tab_"] div[data-testid="stButton"] button {
     border: 1px solid #e7e5e4;
     border-radius: 10px;
     padding: 14px 16px;
-    margin-bottom: 10px;
+    margin-bottom: 12px;
+    height: 100%;
 }
 .xlt-panel-card-noload {
     border-left: 3px solid #dc2626;
 }
-.xlt-panel-card-row {
+.xlt-panel-card-top {
     display: flex;
+    align-items: center;
     justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 4px 16px;
-    font-size: 13px;
+    gap: 8px;
+}
+.xlt-panel-card-number {
+    font-size: 15px;
+    font-weight: 700;
     color: #1c1917;
-    padding: 3px 0;
 }
-.xlt-panel-card-row span:first-child {
+.xlt-panel-card-sub {
+    font-size: 12px;
+    color: #78716c;
+    margin-top: 3px;
+}
+.xlt-panel-card-divider {
+    border-top: 1px solid #f0eeed;
+    margin: 10px 0;
+}
+.xlt-panel-card-fields {
+    display: flex;
+    gap: 10px;
+}
+.xlt-panel-field {
+    flex: 1;
+    min-width: 0;
+}
+.xlt-panel-field-label {
+    font-size: 11px;
     color: #a8a29e;
-    min-width: 120px;
+    margin-bottom: 2px;
 }
-.xlt-panel-card-row span:last-child {
+.xlt-panel-field-value {
+    font-size: 13px;
     font-weight: 600;
-    text-align: right;
+    color: #1c1917;
+    overflow-wrap: break-word;
 }
 .xlt-panel-empty {
     color: #a8a29e;
@@ -2303,7 +2326,7 @@ elif pagina == "Live Map":
                  f'border:1px solid rgba(0,0,0,0.35);box-shadow:0 0 2px rgba(0,0,0,0.4);"></div>',
         )
 
-    m = folium.Map(location=[31.5, -88.0], zoom_start=6, tiles="cartodbpositron")
+    m = folium.Map(location=[31.5, -88.0], zoom_start=6, tiles="OpenStreetMap")
     folium.Marker(WAREHOUSE_COORDS["Texas"], tooltip="Texas Warehouse",
                   icon=_star_icon(COLOR_TEXAS)).add_to(m)
     folium.Marker(WAREHOUSE_COORDS["Florida"], tooltip="Florida Warehouse",
@@ -2354,22 +2377,37 @@ elif pagina == "Live Map":
     if not panel_loads:
         st.markdown('<div class="xlt-panel-empty">No loads match this filter.</div>', unsafe_allow_html=True)
     else:
-        for l in panel_loads:
+        panel_cols = st.columns(3)
+        for i, l in enumerate(panel_loads):
             shp_list = ", ".join(s["shipment_number"] for s in l["shipments"] if s["shipment_number"]) or "—"
             dests = sorted({s["destination"] for s in l["shipments"] if s["destination"].strip(", ")})
             dest_list = ", ".join(dests) or "—"
             consol_badge = ' <span class="badge badge-pickup">Consolidated</span>' if l["is_consolidated"] else ""
-            st.markdown(f"""
-            <div class="xlt-panel-card">
-                <div class="xlt-panel-card-row"><span>Load #</span><span>{html.escape(str(l['load_number'] or '—'))}{consol_badge}</span></div>
-                <div class="xlt-panel-card-row"><span>Carrier</span><span>{html.escape(str(l['carrier'] or '—'))}</span></div>
-                <div class="xlt-panel-card-row"><span>Warehouse</span><span>{_wh_badge(l['warehouse'])}</span></div>
-                <div class="xlt-panel-card-row"><span>Shipment(s)</span><span>{html.escape(shp_list)}</span></div>
-                <div class="xlt-panel-card-row"><span>Destination</span><span>{html.escape(dest_list)}</span></div>
-                <div class="xlt-panel-card-row"><span>Weight</span><span>{fmt_weight(l['weight'])} lbs</span></div>
-                <div class="xlt-panel-card-row"><span>ETA Pickup</span><span>{html.escape(str(l['eta_pickup'] or '—'))}</span></div>
-            </div>
-            """, unsafe_allow_html=True)
+            with panel_cols[i % 3]:
+                st.markdown(f"""
+                <div class="xlt-panel-card">
+                    <div class="xlt-panel-card-top">
+                        <span class="xlt-panel-card-number">{html.escape(str(l['load_number'] or '—'))}{consol_badge}</span>
+                        {_wh_badge(l['warehouse'])}
+                    </div>
+                    <div class="xlt-panel-card-sub">{html.escape(str(l['carrier'] or '—'))} · {html.escape(shp_list)}</div>
+                    <div class="xlt-panel-card-divider"></div>
+                    <div class="xlt-panel-card-fields">
+                        <div class="xlt-panel-field">
+                            <div class="xlt-panel-field-label">Destination</div>
+                            <div class="xlt-panel-field-value">{html.escape(dest_list)}</div>
+                        </div>
+                        <div class="xlt-panel-field">
+                            <div class="xlt-panel-field-label">Weight</div>
+                            <div class="xlt-panel-field-value">{fmt_weight(l['weight'])} lbs</div>
+                        </div>
+                        <div class="xlt-panel-field">
+                            <div class="xlt-panel-field-label">ETA Pickup</div>
+                            <div class="xlt-panel-field-value">{html.escape(str(l['eta_pickup'] or '—'))}</div>
+                        </div>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
 
     # ── MAP 2: IN-TRANSIT BOARD ───────────────────────────────────────────────
     st.markdown("<br><br>", unsafe_allow_html=True)
@@ -2409,7 +2447,7 @@ elif pagina == "Live Map":
     def _triangle_icon(hex_color):
         return folium.DivIcon(html=f'<div style="font-size:22px;line-height:1;color:{hex_color};text-shadow:0 0 3px rgba(0,0,0,0.35);">▲</div>')
 
-    m_ip = folium.Map(location=[31.5, -88.0], zoom_start=6, tiles="cartodbpositron")
+    m_ip = folium.Map(location=[31.5, -88.0], zoom_start=6, tiles="OpenStreetMap")
     folium.Marker(WAREHOUSE_COORDS["Texas"], tooltip="Texas Warehouse",
                   icon=_triangle_icon(COLOR_TEXAS)).add_to(m_ip)
     folium.Marker(WAREHOUSE_COORDS["Florida"], tooltip="Florida Warehouse",
@@ -2464,22 +2502,38 @@ elif pagina == "Live Map":
     if not panel_ships:
         st.markdown('<div class="xlt-panel-empty">No shipments match this filter.</div>', unsafe_allow_html=True)
     else:
-        for s in panel_ships:
+        panel_cols = st.columns(3)
+        for i, s in enumerate(panel_ships):
             if s["load_assigned"]:
                 carrier_line = f"{html.escape(str(s['carrier'] or '—'))} · Load {html.escape(str(s['load_assigned']))}"
             else:
                 carrier_line = '<span style="color:#dc2626;font-weight:700;">No load assigned</span>'
             card_cls = "xlt-panel-card xlt-panel-card-noload" if not s["load_assigned"] else "xlt-panel-card"
-            st.markdown(f"""
-            <div class="{card_cls}">
-                <div class="xlt-panel-card-row"><span>Shipment #</span><span>{html.escape(str(s['shipment_number'] or '—'))}</span></div>
-                <div class="xlt-panel-card-row"><span>Carrier / Load</span><span>{carrier_line}</span></div>
-                <div class="xlt-panel-card-row"><span>Warehouse</span><span>{_wh_badge(s['warehouse'])}</span></div>
-                <div class="xlt-panel-card-row"><span>Destination</span><span>{html.escape(str(s['destination']))}</span></div>
-                <div class="xlt-panel-card-row"><span>Weight</span><span>{fmt_weight(s['weight'])} lbs</span></div>
-                <div class="xlt-panel-card-row"><span>ETA Pickup</span><span>{fmt_date(s['eta_pickup'] or '—')}</span></div>
-            </div>
-            """, unsafe_allow_html=True)
+            with panel_cols[i % 3]:
+                st.markdown(f"""
+                <div class="{card_cls}">
+                    <div class="xlt-panel-card-top">
+                        <span class="xlt-panel-card-number">{html.escape(str(s['shipment_number'] or '—'))}</span>
+                        {_wh_badge(s['warehouse'])}
+                    </div>
+                    <div class="xlt-panel-card-sub">{carrier_line}</div>
+                    <div class="xlt-panel-card-divider"></div>
+                    <div class="xlt-panel-card-fields">
+                        <div class="xlt-panel-field">
+                            <div class="xlt-panel-field-label">Destination</div>
+                            <div class="xlt-panel-field-value">{html.escape(str(s['destination']))}</div>
+                        </div>
+                        <div class="xlt-panel-field">
+                            <div class="xlt-panel-field-label">Weight</div>
+                            <div class="xlt-panel-field-value">{fmt_weight(s['weight'])} lbs</div>
+                        </div>
+                        <div class="xlt-panel-field">
+                            <div class="xlt-panel-field-label">ETA Pickup</div>
+                            <div class="xlt-panel-field-value">{fmt_date(s['eta_pickup'] or '—')}</div>
+                        </div>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
 
 # ── TRUCK BUILDER ─────────────────────────────────────────────────────────────
 elif pagina == "Truck Builder":
